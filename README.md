@@ -3,7 +3,7 @@
     LOCAL: StarterPlayerScripts ou StarterGui
     AUTOR: Sistema Profissional
     DESCRIÇÃO: UI moderna com controle de velocidade e sistema de combo de socos
-]]
+]] 
 
 -- Serviços
 local Players = game:GetService("Players")

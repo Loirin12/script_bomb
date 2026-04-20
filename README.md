@@ -8,7 +8,7 @@
     ║     ██║  ██║██║██║  ██║██║ ╚████║    ███████║   ██║   ╚██████╔╝██████╔╝  ║
     ║     ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝    ╚══════╝   ╚═╝    ╚═════╝ ╚═════╝   ║
     ║                                                                           ║
-    ║                   SISTEMA AVANÇADO V4.0 - RIAN STUDIOS                     ║
+    ║                   SISTEMA AVANÇADO V4.1 - RIAN STUDIOS                     ║
     ║              VELOCIDADE | VOO MOBILE | BOOST | COMBATE                     ║
     ║                                                                           ║
     ╚═══════════════════════════════════════════════════════════════════════════╝
@@ -21,7 +21,6 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
-local ContextActionService = game:GetService("ContextActionService")
 
 -- Variáveis do jogador
 local player = Players.LocalPlayer
@@ -35,12 +34,14 @@ local isMobile = UserInputService.TouchEnabled and not UserInputService.Keyboard
 -- Configurações de Velocidade
 local NORMAL_SPEED = 16
 local FAST_SPEED = 80
-local BOMBA_SPEED = 100
+local BOMBA_SPEED = 120  -- Velocidade máxima ao pegar bomba
 local MIN_SPEED = 16
 local MAX_SPEED = 120
 local currentSpeed = NORMAL_SPEED
 local isSpeedBoosted = false
 local isBombaBoosted = false
+local bombaBoostTimer = nil
+local originalButtonColor = nil
 
 -- Configurações de VOO
 local isFlying = false
@@ -105,14 +106,13 @@ local floatingCorner = Instance.new("UICorner")
 floatingCorner.CornerRadius = UDim.new(1, 0)
 floatingCorner.Parent = floatingButton
 
--- Sombra do botão flutuante
 local floatingShadow = Instance.new("UIStroke")
 floatingShadow.Color = Color3.fromRGB(255, 255, 255)
 floatingShadow.Thickness = 2
 floatingShadow.Transparency = 0.5
 floatingShadow.Parent = floatingButton
 
--- CONTAINER PRINCIPAL (DESIGN MODERNO)
+-- CONTAINER PRINCIPAL
 local mainContainer = Instance.new("Frame")
 mainContainer.Name = "RianMainContainer"
 mainContainer.Size = UDim2.new(0, 450, 0, 700)
@@ -128,14 +128,13 @@ local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 20)
 mainCorner.Parent = mainContainer
 
--- Borda gradiente
 local mainBorder = Instance.new("UIStroke")
 mainBorder.Color = Color3.fromRGB(66, 135, 245)
 mainBorder.Thickness = 1.5
 mainBorder.Transparency = 0.7
 mainBorder.Parent = mainContainer
 
--- Barra de título com gradiente
+-- Barra de título
 local titleBar = Instance.new("Frame")
 titleBar.Size = UDim2.new(1, 0, 0, 70)
 titleBar.BackgroundColor3 = Color3.fromRGB(66, 135, 245)
@@ -146,7 +145,6 @@ local titleBarCorner = Instance.new("UICorner")
 titleBarCorner.CornerRadius = UDim.new(0, 20)
 titleBarCorner.Parent = titleBar
 
--- Gradiente do título
 local titleGradient = Instance.new("UIGradient")
 titleGradient.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromRGB(66, 135, 245)),
@@ -155,7 +153,6 @@ titleGradient.Color = ColorSequence.new({
 })
 titleGradient.Parent = titleBar
 
--- Logo/Nome do criador
 local creatorLabel = Instance.new("TextLabel")
 creatorLabel.Size = UDim2.new(1, -80, 0, 25)
 creatorLabel.Position = UDim2.new(0, 20, 0, 10)
@@ -168,19 +165,17 @@ creatorLabel.TextXAlignment = Enum.TextXAlignment.Left
 creatorLabel.TextTransparency = 0.1
 creatorLabel.Parent = titleBar
 
--- Título principal
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, -80, 0, 30)
 titleLabel.Position = UDim2.new(0, 20, 0, 35)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "🎮 SISTEMA DE CONTROLE V4.0"
+titleLabel.Text = "🎮 SISTEMA DE CONTROLE V4.1"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextSize = 16
 titleLabel.Font = Enum.Font.GothamSemibold
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Parent = titleBar
 
--- Ícone do criador
 local creatorIcon = Instance.new("ImageLabel")
 creatorIcon.Size = UDim2.new(0, 40, 0, 40)
 creatorIcon.Position = UDim2.new(1, -55, 0, 15)
@@ -189,7 +184,6 @@ creatorIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
 creatorIcon.BackgroundTransparency = 1
 creatorIcon.Parent = titleBar
 
--- Botão de fechar
 local closeButton = Instance.new("ImageButton")
 closeButton.Size = UDim2.new(0, 35, 0, 35)
 closeButton.Position = UDim2.new(1, -48, 0, 17)
@@ -198,7 +192,7 @@ closeButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.BackgroundTransparency = 1
 closeButton.Parent = titleBar
 
--- CONTAINER DE VELOCIDADE (Card)
+-- CONTAINER DE VELOCIDADE
 local speedCard = Instance.new("Frame")
 speedCard.Size = UDim2.new(1, -30, 0, 165)
 speedCard.Position = UDim2.new(0, 15, 0, 85)
@@ -217,7 +211,6 @@ speedCardStroke.Thickness = 0.5
 speedCardStroke.Transparency = 0.8
 speedCardStroke.Parent = speedCard
 
--- Ícone de velocidade
 local speedIcon = Instance.new("ImageLabel")
 speedIcon.Size = UDim2.new(0, 40, 0, 40)
 speedIcon.Position = UDim2.new(0, 15, 0, 15)
@@ -226,7 +219,6 @@ speedIcon.ImageColor3 = Color3.fromRGB(66, 135, 245)
 speedIcon.BackgroundTransparency = 1
 speedIcon.Parent = speedCard
 
--- Label Velocidade Atual
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Size = UDim2.new(1, -70, 0, 30)
 speedLabel.Position = UDim2.new(0, 65, 0, 15)
@@ -249,7 +241,6 @@ speedValueLabel.Font = Enum.Font.GothamBold
 speedValueLabel.TextXAlignment = Enum.TextXAlignment.Left
 speedValueLabel.Parent = speedCard
 
--- Timer da bomba
 local bombTimerLabel = Instance.new("TextLabel")
 bombTimerLabel.Size = UDim2.new(1, -70, 0, 20)
 bombTimerLabel.Position = UDim2.new(0, 65, 0, 70)
@@ -262,7 +253,7 @@ bombTimerLabel.TextXAlignment = Enum.TextXAlignment.Left
 bombTimerLabel.Visible = false
 bombTimerLabel.Parent = speedCard
 
--- SLIDER DE VELOCIDADE
+-- SLIDER
 local sliderBg = Instance.new("Frame")
 sliderBg.Size = UDim2.new(0.88, 0, 0, 8)
 sliderBg.Position = UDim2.new(0.06, 0, 0.72, 0)
@@ -293,11 +284,6 @@ sliderButton.ScaleType = Enum.ScaleType.Fit
 sliderButton.BackgroundTransparency = 1
 sliderButton.Parent = speedCard
 
-local sliderBtnCorner = Instance.new("UICorner")
-sliderBtnCorner.CornerRadius = UDim.new(1, 0)
-sliderBtnCorner.Parent = sliderButton
-
--- Labels Min/Max
 local minLabel = Instance.new("TextLabel")
 minLabel.Size = UDim2.new(0, 35, 0, 20)
 minLabel.Position = UDim2.new(0.04, 0, 0.85, 0)
@@ -383,7 +369,6 @@ flyStatusLabel.Font = Enum.Font.GothamBold
 flyStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 flyStatusLabel.Parent = flyCard
 
--- Botão de Voo
 local flyButton = Instance.new("TextButton")
 flyButton.Size = UDim2.new(0, 130, 0, 42)
 flyButton.Position = UDim2.new(0.5, -65, 1, -12)
@@ -399,7 +384,7 @@ local flyButtonCorner = Instance.new("UICorner")
 flyButtonCorner.CornerRadius = UDim.new(0, 8)
 flyButtonCorner.Parent = flyButton
 
--- Container dos botões de ação
+-- Container dos botões
 local actionTitle = Instance.new("TextLabel")
 actionTitle.Size = UDim2.new(1, -30, 0, 25)
 actionTitle.Position = UDim2.new(0, 15, 0, 390)
@@ -423,7 +408,7 @@ gridLayout.CellPadding = UDim2.new(0, 12, 0, 12)
 gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 gridLayout.Parent = buttonsContainer
 
--- Footer com créditos
+-- Footer
 local footerFrame = Instance.new("Frame")
 footerFrame.Size = UDim2.new(1, 0, 0, 45)
 footerFrame.Position = UDim2.new(0, 0, 1, -45)
@@ -450,13 +435,13 @@ local versionLabel = Instance.new("TextLabel")
 versionLabel.Size = UDim2.new(1, 0, 1, 0)
 versionLabel.Position = UDim2.new(0, 0, 0, 22)
 versionLabel.BackgroundTransparency = 1
-versionLabel.Text = "VERSION 4.0 | SISTEMA PROFISSIONAL | MOBILE COMPATÍVEL"
+versionLabel.Text = "VERSION 4.1 | BOOST CORRIGIDO | MOBILE COMPATÍVEL"
 versionLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
 versionLabel.TextSize = 9
 versionLabel.Font = Enum.Font.Gotham
 versionLabel.Parent = footerFrame
 
--- BOTÕES DE CONTROLE MOBILE PARA VOO (aparecem só no mobile)
+-- Controles mobile para voo
 local mobileFlyControls = Instance.new("Frame")
 mobileFlyControls.Name = "MobileFlyControls"
 mobileFlyControls.Size = UDim2.new(0, 200, 0, 100)
@@ -471,7 +456,6 @@ local mobileControlsCorner = Instance.new("UICorner")
 mobileControlsCorner.CornerRadius = UDim.new(0, 12)
 mobileControlsCorner.Parent = mobileFlyControls
 
--- Botão subir (mobile)
 local flyUpButton = Instance.new("TextButton")
 flyUpButton.Size = UDim2.new(0, 80, 0, 80)
 flyUpButton.Position = UDim2.new(0.1, 0, 0.1, 0)
@@ -487,7 +471,6 @@ local flyUpCorner = Instance.new("UICorner")
 flyUpCorner.CornerRadius = UDim.new(0, 40)
 flyUpCorner.Parent = flyUpButton
 
--- Botão descer (mobile)
 local flyDownButton = Instance.new("TextButton")
 flyDownButton.Size = UDim2.new(0, 80, 0, 80)
 flyDownButton.Position = UDim2.new(0.55, 0, 0.1, 0)
@@ -503,7 +486,6 @@ local flyDownCorner = Instance.new("UICorner")
 flyDownCorner.CornerRadius = UDim.new(0, 40)
 flyDownCorner.Parent = flyDownButton
 
--- Label de instrução mobile
 local mobileInstruction = Instance.new("TextLabel")
 mobileInstruction.Size = UDim2.new(1, 0, 0, 25)
 mobileInstruction.Position = UDim2.new(0, 0, 1, -30)
@@ -514,13 +496,193 @@ mobileInstruction.TextSize = 10
 mobileInstruction.Font = Enum.Font.Gotham
 mobileInstruction.Parent = mobileFlyControls
 
--- ============ SISTEMA DE VOO (COMPATÍVEL COM MOBILE) ============
+-- ============ FUNÇÃO PRINCIPAL DE VELOCIDADE ============
+local function applySpeedToCharacter()
+    if not humanoid then return end
+    
+    if isFlying then
+        FLY_SPEED = currentSpeed
+    else
+        humanoid.WalkSpeed = currentSpeed
+    end
+    
+    -- Atualizar UI
+    speedValueLabel.Text = math.floor(currentSpeed) .. " / " .. MAX_SPEED
+    
+    local percent = (currentSpeed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED)
+    sliderFill:TweenSize(UDim2.new(percent, 0, 1, 0), "Out", "Quad", 0.1, true)
+    sliderButton:TweenPosition(UDim2.new(percent, -11, 0.5, -11), "Out", "Quad", 0.1, true)
+end
+
+local function updateSpeed(newSpeed, ignoreBoostLock)
+    -- Se tiver boost ativo e não for para ignorar o bloqueio, não permite mudar
+    if isBombaBoosted and not ignoreBoostLock then
+        return
+    end
+    
+    currentSpeed = math.clamp(newSpeed, MIN_SPEED, MAX_SPEED)
+    applySpeedToCharacter()
+end
+
+-- ============ BOOST DA BOMBA CORRIGIDO ============
+local function activateBombaBoost()
+    -- Se já tiver boost ativo, não faz nada
+    if isBombaBoosted then 
+        return 
+    end
+    
+    print("🔥 BOOST DA BOMBA ACTIVADO! Velocidade máxima por 10 segundos!")
+    
+    isBombaBoosted = true
+    isSpeedBoosted = true
+    
+    -- Salvar a cor original do botão
+    originalButtonColor = speedToggleButton.BackgroundColor3
+    
+    -- Tocar som
+    local soundClone = boostSound:Clone()
+    soundClone.Parent = character
+    soundClone:Play()
+    
+    -- Forçar velocidade máxima da bomba (120)
+    currentSpeed = BOMBA_SPEED
+    applySpeedToCharacter()
+    
+    -- Mudar cores para indicar boost ativo
+    TweenService:Create(speedToggleButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(255, 100, 100)}):Play()
+    TweenService:Create(speedIcon, TweenInfo.new(0.3), {ImageColor3 = Color3.fromRGB(255, 100, 100)}):Play()
+    TweenService:Create(speedCardStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(255, 100, 100)}):Play()
+    
+    speedLabel.Text = "💣 BOOST ACTIVO!"
+    speedValueLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+    
+    bombTimerLabel.Visible = true
+    
+    -- Efeitos visuais no personagem
+    local glowEffect = Instance.new("PointLight")
+    glowEffect.Color = Color3.fromRGB(255, 100, 0)
+    glowEffect.Range = 12
+    glowEffect.Brightness = 2.5
+    glowEffect.Parent = humanoidRootPart or character
+    
+    local particleEffect = Instance.new("ParticleEmitter")
+    particleEffect.Texture = "rbxassetid://284646226"
+    particleEffect.Rate = 60
+    particleEffect.SpreadAngle = Vector2.new(360, 360)
+    particleEffect.VelocityInheritance = 1
+    particleEffect.Lifetime = NumberRange.new(0.5)
+    particleEffect.Speed = NumberRange.new(6)
+    particleEffect.Color = ColorSequence.new(Color3.fromRGB(255, 100, 0))
+    particleEffect.Parent = humanoidRootPart or character
+    
+    -- Notificação visual
+    local notif = Instance.new("Frame")
+    notif.Size = UDim2.new(0, 350, 0, 70)
+    notif.Position = UDim2.new(0.5, -175, 0, -70)
+    notif.BackgroundColor3 = Color3.fromRGB(255, 64, 64)
+    notif.BackgroundTransparency = 0.1
+    notif.BorderSizePixel = 0
+    notif.Parent = screenGui
+    
+    local notifCorner = Instance.new("UICorner")
+    notifCorner.CornerRadius = UDim.new(0, 12)
+    notifCorner.Parent = notif
+    
+    local notifText = Instance.new("TextLabel")
+    notifText.Size = UDim2.new(1, 0, 1, 0)
+    notifText.BackgroundTransparency = 1
+    notifText.Text = "💣 BOOST DE VELOCIDADE ACTIVADO! 💣\n🚀 VELOCIDADE MÁXIMA: " .. BOMBA_SPEED
+    notifText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    notifText.TextScaled = true
+    notifText.Font = Enum.Font.GothamBold
+    notifText.Parent = notif
+    
+    TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, -175, 0, 20)}):Play()
+    
+    -- Timer de 10 segundos
+    local startTime = tick()
+    local timerConnection
+    
+    timerConnection = RunService.RenderStepped:Connect(function()
+        if not isBombaBoosted then
+            if timerConnection then timerConnection:Disconnect() end
+            return
+        end
+        
+        local elapsed = tick() - startTime
+        local remaining = math.max(0, 10 - elapsed)
+        bombTimerLabel.Text = "💣 BOOST ACTIVO! TEMPO RESTANTE: " .. math.ceil(remaining) .. "s"
+        
+        if remaining <= 0 then
+            timerConnection:Disconnect()
+            
+            -- FINALIZAR BOOST
+            print("⏰ Boost da bomba finalizado! Voltando à velocidade normal.")
+            
+            isBombaBoosted = false
+            isSpeedBoosted = false
+            
+            -- Voltar para velocidade normal
+            currentSpeed = NORMAL_SPEED
+            applySpeedToCharacter()
+            
+            -- Restaurar cores originais
+            bombTimerLabel.Visible = false
+            speedLabel.Text = "⚡ VELOCIDADE ATUAL"
+            speedValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            sliderFill.BackgroundColor3 = Color3.fromRGB(66, 135, 245)
+            
+            TweenService:Create(speedToggleButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(66, 135, 245)}):Play()
+            TweenService:Create(speedIcon, TweenInfo.new(0.3), {ImageColor3 = Color3.fromRGB(66, 135, 245)}):Play()
+            TweenService:Create(speedCardStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(66, 135, 245)}):Play()
+            
+            -- Remover efeitos visuais
+            if glowEffect then glowEffect:Destroy() end
+            if particleEffect then particleEffect:Destroy() end
+            
+            -- Notificação de fim
+            local endNotif = Instance.new("Frame")
+            endNotif.Size = UDim2.new(0, 300, 0, 50)
+            endNotif.Position = UDim2.new(0.5, -150, 0, -60)
+            endNotif.BackgroundColor3 = Color3.fromRGB(64, 64, 64)
+            endNotif.BackgroundTransparency = 0.1
+            endNotif.BorderSizePixel = 0
+            endNotif.Parent = screenGui
+            
+            local endCorner = Instance.new("UICorner")
+            endCorner.CornerRadius = UDim.new(0, 12)
+            endCorner.Parent = endNotif
+            
+            local endText = Instance.new("TextLabel")
+            endText.Size = UDim2.new(1, 0, 1, 0)
+            endText.BackgroundTransparency = 1
+            endText.Text = "⚡ BOOST FINALIZADO! VELOCIDADE NORMAL ⚡"
+            endText.TextColor3 = Color3.fromRGB(255, 255, 255)
+            endText.TextScaled = true
+            endText.Font = Enum.Font.GothamBold
+            endText.Parent = endNotif
+            
+            TweenService:Create(endNotif, TweenInfo.new(0.4), {Position = UDim2.new(0.5, -150, 0, 20)}):Play()
+            wait(2)
+            TweenService:Create(endNotif, TweenInfo.new(0.4), {Position = UDim2.new(0.5, -150, 0, -60), BackgroundTransparency = 1}):Play()
+            wait(0.3)
+            endNotif:Destroy()
+        end
+    end)
+    
+    wait(2.5)
+    TweenService:Create(notif, TweenInfo.new(0.4), {Position = UDim2.new(0.5, -175, 0, -70), BackgroundTransparency = 1}):Play()
+    wait(0.3)
+    notif:Destroy()
+end
+
+-- ============ SISTEMA DE VOO ============
 local function updateFlyMovement()
     if not isFlying or not flyBodyVelocity then return end
     
     local moveDirection = Vector3.new()
     
-    -- Controles de teclado (PC)
     if not isMobile then
         if UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up) then
             moveDirection = moveDirection + humanoidRootPart.CFrame.LookVector
@@ -541,16 +703,12 @@ local function updateFlyMovement()
             moveDirection = moveDirection - Vector3.new(0, 1, 0)
         end
     else
-        -- Controles móveis (joystick virtual do Roblox já lida com WASD via toque)
-        -- Para subir/descer, usamos os botões mobile
         if flyUp then
             moveDirection = moveDirection + Vector3.new(0, 1, 0)
         end
         if flyDown then
             moveDirection = moveDirection - Vector3.new(0, 1, 0)
         end
-        
-        -- Movimento horizontal usando o joystick padrão do Roblox
         if humanoid then
             local moveVector = humanoid.MoveDirection
             if moveVector.Magnitude > 0 then
@@ -581,7 +739,6 @@ local function startFly()
     flyIcon.ImageColor3 = Color3.fromRGB(66, 200, 100)
     flyCardStroke.Color = Color3.fromRGB(66, 200, 100)
     
-    -- Mostrar controles mobile se for mobile
     if isMobile then
         mobileFlyControls.Visible = true
     end
@@ -600,18 +757,15 @@ local function startFly()
     
     flySound:Play()
     
-    -- Loop de movimento
     coroutine.wrap(function()
         while isFlying and humanoidRootPart and humanoid do
             updateFlyMovement()
-            
             humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
             humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
             humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
             humanoid:SetStateEnabled(Enum.HumanoidStateType.Landed, false)
             humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
             humanoid.PlatformStand = true
-            
             RunService.Heartbeat:Wait()
         end
     end)()
@@ -659,179 +813,11 @@ local function toggleFly()
     end
 end
 
--- Botões mobile para voo
 if isMobile then
-    flyUpButton.MouseButton1Down:Connect(function()
-        flyUp = true
-    end)
-    
-    flyUpButton.MouseButton1Up:Connect(function()
-        flyUp = false
-    end)
-    
-    flyDownButton.MouseButton1Down:Connect(function()
-        flyDown = true
-    end)
-    
-    flyDownButton.MouseButton1Up:Connect(function()
-        flyDown = false
-    end)
-end
-
--- FUNÇÃO PARA ATUALIZAR VELOCIDADE
-local function updateSpeed(newSpeed, fromBomba)
-    if fromBomba and isBombaBoosted then return end
-    
-    currentSpeed = math.clamp(newSpeed, MIN_SPEED, MAX_SPEED)
-    if humanoid and not isFlying then
-        humanoid.WalkSpeed = currentSpeed
-    elseif isFlying then
-        FLY_SPEED = currentSpeed
-    end
-    
-    speedValueLabel.Text = math.floor(currentSpeed) .. " / " .. MAX_SPEED
-    
-    if isBombaBoosted then
-        speedLabel.Text = "💣 VELOCIDADE (BOOST ACTIVO!)"
-        speedValueLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    else
-        speedLabel.Text = "⚡ VELOCIDADE ATUAL"
-        speedValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    end
-    
-    local percent = (currentSpeed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED)
-    sliderFill:TweenSize(UDim2.new(percent, 0, 1, 0), "Out", "Quad", 0.1, true)
-    sliderButton:TweenPosition(UDim2.new(percent, -11, 0.5, -11), "Out", "Quad", 0.1, true)
-end
-
--- FUNÇÃO PARA ATIVAR BOOST DA BOMBA
-local function activateBombaBoost()
-    if isBombaBoosted then return end
-    
-    isBombaBoosted = true
-    isSpeedBoosted = true
-    
-    local soundClone = boostSound:Clone()
-    soundClone.Parent = character
-    soundClone:Play()
-    
-    updateSpeed(BOMBA_SPEED)
-    
-    TweenService:Create(speedToggleButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(255, 100, 100)}):Play()
-    TweenService:Create(speedIcon, TweenInfo.new(0.3), {ImageColor3 = Color3.fromRGB(255, 100, 100)}):Play()
-    TweenService:Create(speedCardStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(255, 100, 100)}):Play()
-    
-    sliderFill.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-    
-    bombTimerLabel.Visible = true
-    bombTimerLabel.Text = "💣 BOOST ACTIVO! TEMPO RESTANTE: 10s"
-    
-    -- Efeitos visuais
-    local glowEffect = Instance.new("PointLight")
-    glowEffect.Color = Color3.fromRGB(255, 100, 0)
-    glowEffect.Range = 12
-    glowEffect.Brightness = 2.5
-    glowEffect.Parent = humanoidRootPart or character
-    
-    local particleEffect = Instance.new("ParticleEmitter")
-    particleEffect.Texture = "rbxassetid://284646226"
-    particleEffect.Rate = 60
-    particleEffect.SpreadAngle = Vector2.new(360, 360)
-    particleEffect.VelocityInheritance = 1
-    particleEffect.Lifetime = NumberRange.new(0.5)
-    particleEffect.Speed = NumberRange.new(6)
-    particleEffect.Color = ColorSequence.new(Color3.fromRGB(255, 100, 0))
-    particleEffect.Parent = humanoidRootPart or character
-    
-    -- Notificação
-    local notif = Instance.new("Frame")
-    notif.Size = UDim2.new(0, 320, 0, 60)
-    notif.Position = UDim2.new(0.5, -160, 0, -60)
-    notif.BackgroundColor3 = Color3.fromRGB(255, 64, 64)
-    notif.BackgroundTransparency = 0.1
-    notif.BorderSizePixel = 0
-    notif.Parent = screenGui
-    
-    local notifCorner = Instance.new("UICorner")
-    notifCorner.CornerRadius = UDim.new(0, 12)
-    notifCorner.Parent = notif
-    
-    local notifText = Instance.new("TextLabel")
-    notifText.Size = UDim2.new(1, 0, 1, 0)
-    notifText.BackgroundTransparency = 1
-    notifText.Text = "💣 BOOST DE VELOCIDADE ACTIVADO! 💣"
-    notifText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    notifText.TextScaled = true
-    notifText.Font = Enum.Font.GothamBold
-    notifText.Parent = notif
-    
-    TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, -160, 0, 20)}):Play()
-    
-    -- Timer
-    local startTime = tick()
-    local timerConnection
-    
-    timerConnection = RunService.RenderStepped:Connect(function()
-        if not isBombaBoosted then
-            timerConnection:Disconnect()
-            return
-        end
-        
-        local elapsed = tick() - startTime
-        local remaining = math.max(0, 10 - elapsed)
-        bombTimerLabel.Text = "💣 BOOST ACTIVO! TEMPO RESTANTE: " .. math.ceil(remaining) .. "s"
-        
-        if remaining <= 0 then
-            timerConnection:Disconnect()
-            
-            isBombaBoosted = false
-            isSpeedBoosted = false
-            bombTimerLabel.Visible = false
-            speedLabel.Text = "⚡ VELOCIDADE ATUAL"
-            speedValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-            sliderFill.BackgroundColor3 = Color3.fromRGB(66, 135, 245)
-            TweenService:Create(speedToggleButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(66, 135, 245)}):Play()
-            TweenService:Create(speedIcon, TweenInfo.new(0.3), {ImageColor3 = Color3.fromRGB(66, 135, 245)}):Play()
-            TweenService:Create(speedCardStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(66, 135, 245)}):Play()
-            
-            glowEffect:Destroy()
-            particleEffect:Destroy()
-            
-            updateSpeed(NORMAL_SPEED)
-            
-            local endNotif = Instance.new("Frame")
-            endNotif.Size = UDim2.new(0, 280, 0, 50)
-            endNotif.Position = UDim2.new(0.5, -140, 0, -60)
-            endNotif.BackgroundColor3 = Color3.fromRGB(64, 64, 64)
-            endNotif.BackgroundTransparency = 0.1
-            endNotif.BorderSizePixel = 0
-            endNotif.Parent = screenGui
-            
-            local endCorner = Instance.new("UICorner")
-            endCorner.CornerRadius = UDim.new(0, 12)
-            endCorner.Parent = endNotif
-            
-            local endText = Instance.new("TextLabel")
-            endText.Size = UDim2.new(1, 0, 1, 0)
-            endText.BackgroundTransparency = 1
-            endText.Text = "⚡ BOOST FINALIZADO ⚡"
-            endText.TextColor3 = Color3.fromRGB(255, 255, 255)
-            endText.TextScaled = true
-            endText.Font = Enum.Font.GothamBold
-            endText.Parent = endNotif
-            
-            TweenService:Create(endNotif, TweenInfo.new(0.4), {Position = UDim2.new(0.5, -140, 0, 20)}):Play()
-            wait(2)
-            TweenService:Create(endNotif, TweenInfo.new(0.4), {Position = UDim2.new(0.5, -140, 0, -60), BackgroundTransparency = 1}):Play()
-            wait(0.3)
-            endNotif:Destroy()
-        end
-    end)
-    
-    wait(2.5)
-    TweenService:Create(notif, TweenInfo.new(0.4), {Position = UDim2.new(0.5, -160, 0, -60), BackgroundTransparency = 1}):Play()
-    wait(0.3)
-    notif:Destroy()
+    flyUpButton.MouseButton1Down:Connect(function() flyUp = true end)
+    flyUpButton.MouseButton1Up:Connect(function() flyUp = false end)
+    flyDownButton.MouseButton1Down:Connect(function() flyDown = true end)
+    flyDownButton.MouseButton1Up:Connect(function() flyDown = false end)
 end
 
 -- DETECTOR DE BOMBA
@@ -851,7 +837,7 @@ local function setupBombaDetector()
                         parentName:find("bomb") or
                         parentName:find("bomba")
         
-        if isBomba and not isBombaBoosted then
+        if isBomba then
             activateBombaBoost()
             
             if hit:IsA("BasePart") then
@@ -882,16 +868,16 @@ end
 -- SLIDER DRAG
 local dragging = false
 local function updateSliderFromMouse(input)
+    if isBombaBoosted then return end
+    
     local mousePos = input.Position.X
     local sliderAbsPos = sliderBg.AbsolutePosition.X
     local sliderWidth = sliderBg.AbsoluteSize.X
     local percent = math.clamp((mousePos - sliderAbsPos) / sliderWidth, 0, 1)
     local newSpeed = MIN_SPEED + (percent * (MAX_SPEED - MIN_SPEED))
     
-    if not isBombaBoosted then
-        updateSpeed(newSpeed)
-        isSpeedBoosted = false
-    end
+    updateSpeed(newSpeed, true)
+    isSpeedBoosted = (newSpeed > NORMAL_SPEED)
 end
 
 sliderButton.InputBegan:Connect(function(input)
@@ -913,7 +899,7 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- FUNÇÃO PARA CRIAR BOTÕES PROFISSIONAIS
+-- FUNÇÃO PARA CRIAR BOTÕES
 local function createModernButton(text, color, icon, callback)
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(0, 190, 0, 52)
@@ -987,14 +973,14 @@ local speedToggleButton = createModernButton("⚡ VELOCIDADE RÁPIDA", Color3.fr
         local notifText = Instance.new("TextLabel")
         notifText.Size = UDim2.new(1, 0, 1, 0)
         notifText.BackgroundTransparency = 1
-        notifText.Text = "💣 BOOST ACTIVO! AGUARDE..."
+        notifText.Text = "💣 BOOST ACTIVO! AGUARDE O FIM DO BOOST..."
         notifText.TextColor3 = Color3.fromRGB(255, 255, 255)
         notifText.TextScaled = true
         notifText.Font = Enum.Font.GothamBold
         notifText.Parent = notif
         
         TweenService:Create(notif, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -125, 0, 20)}):Play()
-        wait(1.5)
+        wait(2)
         TweenService:Create(notif, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -125, 0, -60), BackgroundTransparency = 1}):Play()
         wait(0.3)
         notif:Destroy()
@@ -1002,11 +988,11 @@ local speedToggleButton = createModernButton("⚡ VELOCIDADE RÁPIDA", Color3.fr
     end
     
     if isSpeedBoosted then
-        updateSpeed(NORMAL_SPEED)
+        updateSpeed(NORMAL_SPEED, true)
         isSpeedBoosted = false
         TweenService:Create(speedToggleButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(66, 135, 245)}):Play()
     else
-        updateSpeed(FAST_SPEED)
+        updateSpeed(FAST_SPEED, true)
         isSpeedBoosted = true
         TweenService:Create(speedToggleButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(76, 175, 80)}):Play()
     end
@@ -1052,13 +1038,13 @@ local infoButton = createModernButton("ℹ️ INFORMAÇÕES", Color3.fromRGB(156
     infoText.Position = UDim2.new(0, 15, 0, 55)
     infoText.BackgroundTransparency = 1
     infoText.Text = [[
-⚡ SISTEMA RIAN STUDIOS V4.0 ⚡
+⚡ SISTEMA RIAN STUDIOS V4.1 ⚡
 
 🎮 CONTROLES DE VELOCIDADE:
    • SLIDER: Ajuste a velocidade livremente
    • RÁPIDO: Alterna entre 16 ↔ 80
    • TURBO: Velocidade máxima (120)
-   • 💣 BOMBA: Boost de 100 por 10s
+   • 💣 BOMBA: Boost de 120 por 10s (NÃO INTERROMPÍVEL)
 
 🕊️ SISTEMA DE VOO:
    • Botão ATIVAR VOO para voar
@@ -1071,7 +1057,7 @@ local infoButton = createModernButton("ℹ️ INFORMAÇÕES", Color3.fromRGB(156
    • Dano: 15 por soco
 
 👑 CRIADO POR RIAN
-📅 VERSION 4.0 - COMPATÍVEL COM MOBILE
+📅 VERSION 4.1 - BOOST CORRIGIDO
     ]]
     infoText.TextColor3 = Color3.fromRGB(220, 220, 220)
     infoText.TextSize = 12
@@ -1132,7 +1118,7 @@ turboButton.MouseButton1Click:Connect(function()
         return
     end
     
-    updateSpeed(MAX_SPEED)
+    updateSpeed(MAX_SPEED, true)
     isSpeedBoosted = true
     TweenService:Create(speedToggleButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(76, 175, 80)}):Play()
     
@@ -1260,11 +1246,10 @@ local function startComboAttack()
     performPunch()
 end
 
--- CLIQUE DO MOUSE (PC) e TOQUE (MOBILE)
+-- CLIQUE DO MOUSE
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
-    -- Para PC: clique esquerdo do mouse
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         local character = player.Character
         if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
@@ -1272,11 +1257,9 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         end
     end
     
-    -- Para mobile: toque na tela (se não estiver clicando em botões da UI)
     if input.UserInputType == Enum.UserInputType.Touch then
         local character = player.Character
         if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
-            -- Verificar se não clicou em nenhum botão da UI
             local guiObjects = screenGui:GetDescendants()
             local hitButton = false
             for _, obj in pairs(guiObjects) do
@@ -1309,14 +1292,21 @@ player.CharacterAdded:Connect(function(newCharacter)
         stopFly()
     end
     
-    updateSpeed(currentSpeed)
+    if isBombaBoosted then
+        isBombaBoosted = false
+        bombTimerLabel.Visible = false
+    end
+    
+    currentSpeed = NORMAL_SPEED
     isSpeedBoosted = false
-    isBombaBoosted = false
-    bombTimerLabel.Visible = false
+    applySpeedToCharacter()
+    
     TweenService:Create(speedToggleButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(66, 135, 245)}):Play()
     TweenService:Create(speedIcon, TweenInfo.new(0.3), {ImageColor3 = Color3.fromRGB(66, 135, 245)}):Play()
     TweenService:Create(speedCardStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(66, 135, 245)}):Play()
     sliderFill.BackgroundColor3 = Color3.fromRGB(66, 135, 245)
+    speedLabel.Text = "⚡ VELOCIDADE ATUAL"
+    speedValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 end)
 
 -- FUNÇÃO ABRIR/FECHAR UI
@@ -1343,11 +1333,9 @@ end
 floatingButton.MouseButton1Click:Connect(toggleUI)
 closeButton.MouseButton1Click:Connect(toggleUI)
 
--- INICIALIZAR DETECTOR DE BOMBA
+-- INICIALIZAR
 setupBombaDetector()
-
--- INICIALIZAR VELOCIDADE
-updateSpeed(NORMAL_SPEED)
+applySpeedToCharacter()
 
 -- Animação do botão flutuante
 coroutine.wrap(function()
@@ -1362,7 +1350,7 @@ coroutine.wrap(function()
 end)()
 
 print("════════════════════════════════════════════════════════════════")
-print("✅ SISTEMA RIAN STUDIOS V4.0 CARREGADO COM SUCESSO!")
+print("✅ SISTEMA RIAN STUDIOS V4.1 CARREGADO COM SUCESSO!")
+print("✅ BOOST DA BOMBA CORRIGIDO - AGORA MANTÉM VELOCIDADE MÁXIMA!")
 print("✅ FUNCIONALIDADES: VELOCIDADE | VOO MOBILE | BOOST | COMBATE")
-print("✅ COMPATÍVEL COM PC E MOBILE!")
 print("════════════════════════════════════════════════════════════════")

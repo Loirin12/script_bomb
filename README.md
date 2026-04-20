@@ -1,14 +1,17 @@
 --[[
-    ╔══════════════════════════════════════════════════════════════╗
-    ║                                                              ║
-    ║     SISTEMA AVANÇADO DE VELOCIDADE, VOO E COMBATE - V3.0     ║
-    ║                                                              ║
-    ║                      CRIADO POR: RIAN                        ║
-    ║                   COPYRIGHT © 2024 - RIAN STUDIOS            ║
-    ║                                                              ║
-    ║      UI PROFISSIONAL | VOO | BOOST | COMBO DE SOCOS         ║
-    ║                                                              ║
-    ╚══════════════════════════════════════════════════════════════╝
+    ╔═══════════════════════════════════════════════════════════════════════════╗
+    ║                                                                           ║
+    ║     ██████╗ ██╗ █████╗ ███╗   ██╗    ███████╗████████╗██╗   ██╗██████╗   ║
+    ║     ██╔══██╗██║██╔══██╗████╗  ██║    ██╔════╝╚══██╔══╝██║   ██║██╔══██╗  ║
+    ║     ██████╔╝██║███████║██╔██╗ ██║    ███████╗   ██║   ██║   ██║██║  ██║  ║
+    ║     ██╔══██╗██║██╔══██║██║╚██╗██║    ╚════██║   ██║   ██║   ██║██║  ██║  ║
+    ║     ██║  ██║██║██║  ██║██║ ╚████║    ███████║   ██║   ╚██████╔╝██████╔╝  ║
+    ║     ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝    ╚══════╝   ╚═╝    ╚═════╝ ╚═════╝   ║
+    ║                                                                           ║
+    ║                   SISTEMA AVANÇADO V4.0 - RIAN STUDIOS                     ║
+    ║              VELOCIDADE | VOO MOBILE | BOOST | COMBATE                     ║
+    ║                                                                           ║
+    ╚═══════════════════════════════════════════════════════════════════════════╝
 ]]
 
 -- Serviços
@@ -26,6 +29,9 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
+-- Detecta se é mobile
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled and not UserInputService.MouseEnabled
+
 -- Configurações de Velocidade
 local NORMAL_SPEED = 16
 local FAST_SPEED = 80
@@ -42,6 +48,8 @@ local FLY_SPEED = 80
 local flyBodyVelocity = nil
 local flyBodyGyro = nil
 local defaultGravity = Workspace.Gravity
+local flyUp = false
+local flyDown = false
 
 -- Configurações de Ataque
 local PUNCH_DAMAGE = 15
@@ -79,14 +87,15 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "RianStudiosUI"
 screenGui.Parent = player:WaitForChild("PlayerGui")
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.IgnoreGuiInset = true
 
 -- BOTÃO FLUTUANTE ANIMADO
 local floatingButton = Instance.new("ImageButton")
 floatingButton.Name = "RianFloatingButton"
-floatingButton.Size = UDim2.new(0, 65, 0, 65)
-floatingButton.Position = UDim2.new(0.02, 0, 0.85, 0)
+floatingButton.Size = UDim2.new(0, 70, 0, 70)
+floatingButton.Position = UDim2.new(0.02, 0, 0.82, 0)
 floatingButton.BackgroundColor3 = Color3.fromRGB(66, 135, 245)
-floatingButton.BackgroundTransparency = 0.15
+floatingButton.BackgroundTransparency = 0
 floatingButton.Image = "rbxassetid://6031094773"
 floatingButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
 floatingButton.ScaleType = Enum.ScaleType.Fit
@@ -96,119 +105,168 @@ local floatingCorner = Instance.new("UICorner")
 floatingCorner.CornerRadius = UDim.new(1, 0)
 floatingCorner.Parent = floatingButton
 
--- CONTAINER PRINCIPAL
+-- Sombra do botão flutuante
+local floatingShadow = Instance.new("UIStroke")
+floatingShadow.Color = Color3.fromRGB(255, 255, 255)
+floatingShadow.Thickness = 2
+floatingShadow.Transparency = 0.5
+floatingShadow.Parent = floatingButton
+
+-- CONTAINER PRINCIPAL (DESIGN MODERNO)
 local mainContainer = Instance.new("Frame")
 mainContainer.Name = "RianMainContainer"
-mainContainer.Size = UDim2.new(0, 420, 0, 620)
-mainContainer.Position = UDim2.new(0.5, -210, 0.5, -310)
-mainContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-mainContainer.BackgroundTransparency = 0.08
+mainContainer.Size = UDim2.new(0, 450, 0, 700)
+mainContainer.Position = UDim2.new(0.5, -225, 0.5, -350)
+mainContainer.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+mainContainer.BackgroundTransparency = 0.05
 mainContainer.BorderSizePixel = 0
 mainContainer.Visible = false
 mainContainer.Parent = screenGui
+mainContainer.ClipsDescendants = true
 
 local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 16)
+mainCorner.CornerRadius = UDim.new(0, 20)
 mainCorner.Parent = mainContainer
 
--- Barra de título
+-- Borda gradiente
+local mainBorder = Instance.new("UIStroke")
+mainBorder.Color = Color3.fromRGB(66, 135, 245)
+mainBorder.Thickness = 1.5
+mainBorder.Transparency = 0.7
+mainBorder.Parent = mainContainer
+
+-- Barra de título com gradiente
 local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 60)
+titleBar.Size = UDim2.new(1, 0, 0, 70)
 titleBar.BackgroundColor3 = Color3.fromRGB(66, 135, 245)
 titleBar.BorderSizePixel = 0
 titleBar.Parent = mainContainer
 
 local titleBarCorner = Instance.new("UICorner")
-titleBarCorner.CornerRadius = UDim.new(0, 16)
+titleBarCorner.CornerRadius = UDim.new(0, 20)
 titleBarCorner.Parent = titleBar
 
+-- Gradiente do título
 local titleGradient = Instance.new("UIGradient")
 titleGradient.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromRGB(66, 135, 245)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 80, 200))
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 80, 200)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(66, 135, 245))
 })
 titleGradient.Parent = titleBar
 
+-- Logo/Nome do criador
 local creatorLabel = Instance.new("TextLabel")
 creatorLabel.Size = UDim2.new(1, -80, 0, 25)
-creatorLabel.Position = UDim2.new(0, 15, 0, 8)
+creatorLabel.Position = UDim2.new(0, 20, 0, 10)
 creatorLabel.BackgroundTransparency = 1
-creatorLabel.Text = "RIAN STUDIOS"
+creatorLabel.Text = "⚡ RIAN STUDIOS"
 creatorLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 creatorLabel.TextSize = 14
 creatorLabel.Font = Enum.Font.GothamBold
 creatorLabel.TextXAlignment = Enum.TextXAlignment.Left
-creatorLabel.TextTransparency = 0.2
+creatorLabel.TextTransparency = 0.1
 creatorLabel.Parent = titleBar
 
+-- Título principal
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, -80, 0, 30)
-titleLabel.Position = UDim2.new(0, 15, 0, 28)
+titleLabel.Position = UDim2.new(0, 20, 0, 35)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "⚡ SISTEMA DE CONTROLE AVANÇADO V3.0"
+titleLabel.Text = "🎮 SISTEMA DE CONTROLE V4.0"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.TextSize = 15
+titleLabel.TextSize = 16
 titleLabel.Font = Enum.Font.GothamSemibold
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Parent = titleBar
 
+-- Ícone do criador
+local creatorIcon = Instance.new("ImageLabel")
+creatorIcon.Size = UDim2.new(0, 40, 0, 40)
+creatorIcon.Position = UDim2.new(1, -55, 0, 15)
+creatorIcon.Image = "rbxassetid://6031094773"
+creatorIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
+creatorIcon.BackgroundTransparency = 1
+creatorIcon.Parent = titleBar
+
+-- Botão de fechar
 local closeButton = Instance.new("ImageButton")
-closeButton.Size = UDim2.new(0, 32, 0, 32)
-closeButton.Position = UDim2.new(1, -42, 0, 14)
+closeButton.Size = UDim2.new(0, 35, 0, 35)
+closeButton.Position = UDim2.new(1, -48, 0, 17)
 closeButton.Image = "rbxassetid://3926305904"
 closeButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.BackgroundTransparency = 1
 closeButton.Parent = titleBar
 
--- CONTAINER DE VELOCIDADE
+-- CONTAINER DE VELOCIDADE (Card)
 local speedCard = Instance.new("Frame")
-speedCard.Size = UDim2.new(1, -30, 0, 150)
-speedCard.Position = UDim2.new(0, 15, 0, 75)
-speedCard.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-speedCard.BackgroundTransparency = 0.3
+speedCard.Size = UDim2.new(1, -30, 0, 165)
+speedCard.Position = UDim2.new(0, 15, 0, 85)
+speedCard.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+speedCard.BackgroundTransparency = 0.2
 speedCard.BorderSizePixel = 0
 speedCard.Parent = mainContainer
 
 local speedCardCorner = Instance.new("UICorner")
-speedCardCorner.CornerRadius = UDim.new(0, 12)
+speedCardCorner.CornerRadius = UDim.new(0, 14)
 speedCardCorner.Parent = speedCard
 
+local speedCardStroke = Instance.new("UIStroke")
+speedCardStroke.Color = Color3.fromRGB(66, 135, 245)
+speedCardStroke.Thickness = 0.5
+speedCardStroke.Transparency = 0.8
+speedCardStroke.Parent = speedCard
+
+-- Ícone de velocidade
 local speedIcon = Instance.new("ImageLabel")
-speedIcon.Size = UDim2.new(0, 35, 0, 35)
-speedIcon.Position = UDim2.new(0, 12, 0, 12)
+speedIcon.Size = UDim2.new(0, 40, 0, 40)
+speedIcon.Position = UDim2.new(0, 15, 0, 15)
 speedIcon.Image = "rbxassetid://6031094773"
 speedIcon.ImageColor3 = Color3.fromRGB(66, 135, 245)
 speedIcon.BackgroundTransparency = 1
 speedIcon.Parent = speedCard
 
+-- Label Velocidade Atual
 local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(1, -60, 0, 30)
-speedLabel.Position = UDim2.new(0, 55, 0, 12)
+speedLabel.Size = UDim2.new(1, -70, 0, 30)
+speedLabel.Position = UDim2.new(0, 65, 0, 15)
 speedLabel.BackgroundTransparency = 1
-speedLabel.Text = "VELOCIDADE ATUAL: " .. math.floor(currentSpeed)
-speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-speedLabel.TextSize = 13
-speedLabel.Font = Enum.Font.GothamBold
+speedLabel.Text = "VELOCIDADE ATUAL"
+speedLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+speedLabel.TextSize = 12
+speedLabel.Font = Enum.Font.Gotham
 speedLabel.TextXAlignment = Enum.TextXAlignment.Left
 speedLabel.Parent = speedCard
 
+local speedValueLabel = Instance.new("TextLabel")
+speedValueLabel.Size = UDim2.new(1, -70, 0, 35)
+speedValueLabel.Position = UDim2.new(0, 65, 0, 35)
+speedValueLabel.BackgroundTransparency = 1
+speedValueLabel.Text = math.floor(currentSpeed) .. " / " .. MAX_SPEED
+speedValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedValueLabel.TextSize = 22
+speedValueLabel.Font = Enum.Font.GothamBold
+speedValueLabel.TextXAlignment = Enum.TextXAlignment.Left
+speedValueLabel.Parent = speedCard
+
+-- Timer da bomba
 local bombTimerLabel = Instance.new("TextLabel")
-bombTimerLabel.Size = UDim2.new(1, -60, 0, 20)
-bombTimerLabel.Position = UDim2.new(0, 55, 0, 40)
+bombTimerLabel.Size = UDim2.new(1, -70, 0, 20)
+bombTimerLabel.Position = UDim2.new(0, 65, 0, 70)
 bombTimerLabel.BackgroundTransparency = 1
 bombTimerLabel.Text = ""
 bombTimerLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
 bombTimerLabel.TextSize = 11
-bombTimerLabel.Font = Enum.Font.Gotham
+bombTimerLabel.Font = Enum.Font.GothamBold
 bombTimerLabel.TextXAlignment = Enum.TextXAlignment.Left
 bombTimerLabel.Visible = false
 bombTimerLabel.Parent = speedCard
 
--- SLIDER
+-- SLIDER DE VELOCIDADE
 local sliderBg = Instance.new("Frame")
-sliderBg.Size = UDim2.new(0.85, 0, 0, 6)
-sliderBg.Position = UDim2.new(0.075, 0, 0.6, 0)
-sliderBg.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+sliderBg.Size = UDim2.new(0.88, 0, 0, 8)
+sliderBg.Position = UDim2.new(0.06, 0, 0.72, 0)
+sliderBg.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
 sliderBg.BorderSizePixel = 0
 sliderBg.Parent = speedCard
 
@@ -227,16 +285,22 @@ sliderFillCorner.CornerRadius = UDim.new(1, 0)
 sliderFillCorner.Parent = sliderFill
 
 local sliderButton = Instance.new("ImageButton")
-sliderButton.Size = UDim2.new(0, 18, 0, 18)
-sliderButton.Position = UDim2.new((currentSpeed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED), -9, 0.5, -9)
+sliderButton.Size = UDim2.new(0, 22, 0, 22)
+sliderButton.Position = UDim2.new((currentSpeed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED), -11, 0.5, -11)
 sliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 sliderButton.Image = "rbxassetid://266788897"
 sliderButton.ScaleType = Enum.ScaleType.Fit
+sliderButton.BackgroundTransparency = 1
 sliderButton.Parent = speedCard
 
+local sliderBtnCorner = Instance.new("UICorner")
+sliderBtnCorner.CornerRadius = UDim.new(1, 0)
+sliderBtnCorner.Parent = sliderButton
+
+-- Labels Min/Max
 local minLabel = Instance.new("TextLabel")
-minLabel.Size = UDim2.new(0, 30, 0, 20)
-minLabel.Position = UDim2.new(0.05, 0, 0.78, 0)
+minLabel.Size = UDim2.new(0, 35, 0, 20)
+minLabel.Position = UDim2.new(0.04, 0, 0.85, 0)
 minLabel.BackgroundTransparency = 1
 minLabel.Text = tostring(MIN_SPEED)
 minLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
@@ -245,8 +309,8 @@ minLabel.Font = Enum.Font.Gotham
 minLabel.Parent = speedCard
 
 local maxLabel = Instance.new("TextLabel")
-maxLabel.Size = UDim2.new(0, 30, 0, 20)
-maxLabel.Position = UDim2.new(0.88, 0, 0.78, 0)
+maxLabel.Size = UDim2.new(0, 35, 0, 20)
+maxLabel.Position = UDim2.new(0.89, 0, 0.85, 0)
 maxLabel.BackgroundTransparency = 1
 maxLabel.Text = tostring(MAX_SPEED)
 maxLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
@@ -256,8 +320,8 @@ maxLabel.Parent = speedCard
 
 -- Botão Turbo
 local turboButton = Instance.new("TextButton")
-turboButton.Size = UDim2.new(0, 100, 0, 32)
-turboButton.Position = UDim2.new(0.5, -50, 1, -12)
+turboButton.Size = UDim2.new(0, 110, 0, 36)
+turboButton.Position = UDim2.new(0.5, -55, 1, -12)
 turboButton.Text = "🚀 TURBO"
 turboButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 turboButton.TextSize = 13
@@ -270,53 +334,59 @@ local turboCorner = Instance.new("UICorner")
 turboCorner.CornerRadius = UDim.new(0, 8)
 turboCorner.Parent = turboButton
 
--- CONTAINER DE VOO (NOVO)
+-- CONTAINER DE VOO
 local flyCard = Instance.new("Frame")
-flyCard.Size = UDim2.new(1, -30, 0, 100)
-flyCard.Position = UDim2.new(0, 15, 0, 240)
-flyCard.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-flyCard.BackgroundTransparency = 0.3
+flyCard.Size = UDim2.new(1, -30, 0, 110)
+flyCard.Position = UDim2.new(0, 15, 0, 265)
+flyCard.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+flyCard.BackgroundTransparency = 0.2
 flyCard.BorderSizePixel = 0
 flyCard.Parent = mainContainer
 
 local flyCardCorner = Instance.new("UICorner")
-flyCardCorner.CornerRadius = UDim.new(0, 12)
+flyCardCorner.CornerRadius = UDim.new(0, 14)
 flyCardCorner.Parent = flyCard
 
+local flyCardStroke = Instance.new("UIStroke")
+flyCardStroke.Color = Color3.fromRGB(66, 200, 100)
+flyCardStroke.Thickness = 0.5
+flyCardStroke.Transparency = 0.8
+flyCardStroke.Parent = flyCard
+
 local flyIcon = Instance.new("ImageLabel")
-flyIcon.Size = UDim2.new(0, 35, 0, 35)
-flyIcon.Position = UDim2.new(0, 12, 0, 12)
+flyIcon.Size = UDim2.new(0, 40, 0, 40)
+flyIcon.Position = UDim2.new(0, 15, 0, 15)
 flyIcon.Image = "rbxassetid://6031094773"
 flyIcon.ImageColor3 = Color3.fromRGB(66, 200, 100)
 flyIcon.BackgroundTransparency = 1
 flyIcon.Parent = flyCard
 
 local flyTitle = Instance.new("TextLabel")
-flyTitle.Size = UDim2.new(1, -60, 0, 25)
-flyTitle.Position = UDim2.new(0, 55, 0, 12)
+flyTitle.Size = UDim2.new(1, -70, 0, 25)
+flyTitle.Position = UDim2.new(0, 65, 0, 15)
 flyTitle.BackgroundTransparency = 1
 flyTitle.Text = "🕊️ SISTEMA DE VOO"
-flyTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-flyTitle.TextSize = 14
-flyTitle.Font = Enum.Font.GothamBold
+flyTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
+flyTitle.TextSize = 12
+flyTitle.Font = Enum.Font.Gotham
 flyTitle.TextXAlignment = Enum.TextXAlignment.Left
 flyTitle.Parent = flyCard
 
 local flyStatusLabel = Instance.new("TextLabel")
-flyStatusLabel.Size = UDim2.new(1, -60, 0, 20)
-flyStatusLabel.Position = UDim2.new(0, 55, 0, 38)
+flyStatusLabel.Size = UDim2.new(1, -70, 0, 25)
+flyStatusLabel.Position = UDim2.new(0, 65, 0, 38)
 flyStatusLabel.BackgroundTransparency = 1
 flyStatusLabel.Text = "STATUS: DESLIGADO"
-flyStatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-flyStatusLabel.TextSize = 11
-flyStatusLabel.Font = Enum.Font.Gotham
+flyStatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+flyStatusLabel.TextSize = 13
+flyStatusLabel.Font = Enum.Font.GothamBold
 flyStatusLabel.TextXAlignment = Enum.TextXAlignment.Left
 flyStatusLabel.Parent = flyCard
 
 -- Botão de Voo
 local flyButton = Instance.new("TextButton")
-flyButton.Size = UDim2.new(0, 120, 0, 38)
-flyButton.Position = UDim2.new(0.5, -60, 1, -12)
+flyButton.Size = UDim2.new(0, 130, 0, 42)
+flyButton.Position = UDim2.new(0.5, -65, 1, -12)
 flyButton.Text = "🕊️ ATIVAR VOO"
 flyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 flyButton.TextSize = 13
@@ -332,50 +402,174 @@ flyButtonCorner.Parent = flyButton
 -- Container dos botões de ação
 local actionTitle = Instance.new("TextLabel")
 actionTitle.Size = UDim2.new(1, -30, 0, 25)
-actionTitle.Position = UDim2.new(0, 15, 0, 355)
+actionTitle.Position = UDim2.new(0, 15, 0, 390)
 actionTitle.BackgroundTransparency = 1
-actionTitle.Text = "CONTROLES RÁPIDOS"
+actionTitle.Text = "⚡ CONTROLES RÁPIDOS"
 actionTitle.TextColor3 = Color3.fromRGB(200, 200, 200)
-actionTitle.TextSize = 12
+actionTitle.TextSize = 13
 actionTitle.Font = Enum.Font.GothamBold
 actionTitle.TextXAlignment = Enum.TextXAlignment.Left
 actionTitle.Parent = mainContainer
 
 local buttonsContainer = Instance.new("Frame")
-buttonsContainer.Size = UDim2.new(1, -30, 0, 110)
-buttonsContainer.Position = UDim2.new(0, 15, 0, 385)
+buttonsContainer.Size = UDim2.new(1, -30, 0, 120)
+buttonsContainer.Position = UDim2.new(0, 15, 0, 420)
 buttonsContainer.BackgroundTransparency = 1
 buttonsContainer.Parent = mainContainer
 
 local gridLayout = Instance.new("UIGridLayout")
-gridLayout.CellSize = UDim2.new(0, 175, 0, 48)
-gridLayout.CellPadding = UDim2.new(0, 10, 0, 10)
+gridLayout.CellSize = UDim2.new(0, 190, 0, 52)
+gridLayout.CellPadding = UDim2.new(0, 12, 0, 12)
 gridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 gridLayout.Parent = buttonsContainer
 
--- Footer
+-- Footer com créditos
 local footerFrame = Instance.new("Frame")
-footerFrame.Size = UDim2.new(1, 0, 0, 35)
-footerFrame.Position = UDim2.new(0, 0, 1, -35)
-footerFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-footerFrame.BackgroundTransparency = 0.5
+footerFrame.Size = UDim2.new(1, 0, 0, 45)
+footerFrame.Position = UDim2.new(0, 0, 1, -45)
+footerFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 22)
+footerFrame.BackgroundTransparency = 0.3
 footerFrame.BorderSizePixel = 0
 footerFrame.Parent = mainContainer
 
 local footerCorner = Instance.new("UICorner")
-footerCorner.CornerRadius = UDim.new(0, 12)
+footerCorner.CornerRadius = UDim.new(0, 14)
 footerCorner.Parent = footerFrame
 
 local creditLabel = Instance.new("TextLabel")
 creditLabel.Size = UDim2.new(1, 0, 1, 0)
+creditLabel.Position = UDim2.new(0, 0, 0, 5)
 creditLabel.BackgroundTransparency = 1
-creditLabel.Text = "⚡ DESENVOLVIDO POR RIAN ⚡ | SISTEMA V3.0"
+creditLabel.Text = "⚡ DESENVOLVIDO POR RIAN ⚡"
 creditLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
 creditLabel.TextSize = 11
 creditLabel.Font = Enum.Font.Gotham
 creditLabel.Parent = footerFrame
 
--- ============ SISTEMA DE VOO ============
+local versionLabel = Instance.new("TextLabel")
+versionLabel.Size = UDim2.new(1, 0, 1, 0)
+versionLabel.Position = UDim2.new(0, 0, 0, 22)
+versionLabel.BackgroundTransparency = 1
+versionLabel.Text = "VERSION 4.0 | SISTEMA PROFISSIONAL | MOBILE COMPATÍVEL"
+versionLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
+versionLabel.TextSize = 9
+versionLabel.Font = Enum.Font.Gotham
+versionLabel.Parent = footerFrame
+
+-- BOTÕES DE CONTROLE MOBILE PARA VOO (aparecem só no mobile)
+local mobileFlyControls = Instance.new("Frame")
+mobileFlyControls.Name = "MobileFlyControls"
+mobileFlyControls.Size = UDim2.new(0, 200, 0, 100)
+mobileFlyControls.Position = UDim2.new(0.5, -100, 1, -120)
+mobileFlyControls.BackgroundColor3 = Color3.fromRGB(28, 28, 38)
+mobileFlyControls.BackgroundTransparency = 0.3
+mobileFlyControls.BorderSizePixel = 0
+mobileFlyControls.Visible = false
+mobileFlyControls.Parent = screenGui
+
+local mobileControlsCorner = Instance.new("UICorner")
+mobileControlsCorner.CornerRadius = UDim.new(0, 12)
+mobileControlsCorner.Parent = mobileFlyControls
+
+-- Botão subir (mobile)
+local flyUpButton = Instance.new("TextButton")
+flyUpButton.Size = UDim2.new(0, 80, 0, 80)
+flyUpButton.Position = UDim2.new(0.1, 0, 0.1, 0)
+flyUpButton.Text = "⬆️"
+flyUpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyUpButton.TextSize = 30
+flyUpButton.Font = Enum.Font.GothamBold
+flyUpButton.BackgroundColor3 = Color3.fromRGB(66, 200, 100)
+flyUpButton.BorderSizePixel = 0
+flyUpButton.Parent = mobileFlyControls
+
+local flyUpCorner = Instance.new("UICorner")
+flyUpCorner.CornerRadius = UDim.new(0, 40)
+flyUpCorner.Parent = flyUpButton
+
+-- Botão descer (mobile)
+local flyDownButton = Instance.new("TextButton")
+flyDownButton.Size = UDim2.new(0, 80, 0, 80)
+flyDownButton.Position = UDim2.new(0.55, 0, 0.1, 0)
+flyDownButton.Text = "⬇️"
+flyDownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyDownButton.TextSize = 30
+flyDownButton.Font = Enum.Font.GothamBold
+flyDownButton.BackgroundColor3 = Color3.fromRGB(255, 64, 64)
+flyDownButton.BorderSizePixel = 0
+flyDownButton.Parent = mobileFlyControls
+
+local flyDownCorner = Instance.new("UICorner")
+flyDownCorner.CornerRadius = UDim.new(0, 40)
+flyDownCorner.Parent = flyDownButton
+
+-- Label de instrução mobile
+local mobileInstruction = Instance.new("TextLabel")
+mobileInstruction.Size = UDim2.new(1, 0, 0, 25)
+mobileInstruction.Position = UDim2.new(0, 0, 1, -30)
+mobileInstruction.BackgroundTransparency = 1
+mobileInstruction.Text = "Use os botões para subir/descer"
+mobileInstruction.TextColor3 = Color3.fromRGB(200, 200, 200)
+mobileInstruction.TextSize = 10
+mobileInstruction.Font = Enum.Font.Gotham
+mobileInstruction.Parent = mobileFlyControls
+
+-- ============ SISTEMA DE VOO (COMPATÍVEL COM MOBILE) ============
+local function updateFlyMovement()
+    if not isFlying or not flyBodyVelocity then return end
+    
+    local moveDirection = Vector3.new()
+    
+    -- Controles de teclado (PC)
+    if not isMobile then
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up) then
+            moveDirection = moveDirection + humanoidRootPart.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.Down) then
+            moveDirection = moveDirection - humanoidRootPart.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.Left) then
+            moveDirection = moveDirection - humanoidRootPart.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) or UserInputService:IsKeyDown(Enum.KeyCode.Right) then
+            moveDirection = moveDirection + humanoidRootPart.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveDirection = moveDirection + Vector3.new(0, 1, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            moveDirection = moveDirection - Vector3.new(0, 1, 0)
+        end
+    else
+        -- Controles móveis (joystick virtual do Roblox já lida com WASD via toque)
+        -- Para subir/descer, usamos os botões mobile
+        if flyUp then
+            moveDirection = moveDirection + Vector3.new(0, 1, 0)
+        end
+        if flyDown then
+            moveDirection = moveDirection - Vector3.new(0, 1, 0)
+        end
+        
+        -- Movimento horizontal usando o joystick padrão do Roblox
+        if humanoid then
+            local moveVector = humanoid.MoveDirection
+            if moveVector.Magnitude > 0 then
+                moveDirection = moveDirection + moveVector
+            end
+        end
+    end
+    
+    if moveDirection.Magnitude > 0 then
+        moveDirection = moveDirection.Unit
+        flyBodyVelocity.Velocity = moveDirection * FLY_SPEED
+        if flyBodyGyro then
+            flyBodyGyro.CFrame = CFrame.lookAt(Vector3.new(), moveDirection)
+        end
+    else
+        flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    end
+end
+
 local function startFly()
     if isFlying then return end
     
@@ -385,67 +579,32 @@ local function startFly()
     flyButton.Text = "🕊️ DESATIVAR VOO"
     flyButton.BackgroundColor3 = Color3.fromRGB(255, 64, 64)
     flyIcon.ImageColor3 = Color3.fromRGB(66, 200, 100)
+    flyCardStroke.Color = Color3.fromRGB(66, 200, 100)
     
-    -- Salvar gravidade original
+    -- Mostrar controles mobile se for mobile
+    if isMobile then
+        mobileFlyControls.Visible = true
+    end
+    
     Workspace.Gravity = 0
     
-    -- Criar BodyVelocity
     flyBodyVelocity = Instance.new("BodyVelocity")
     flyBodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000)
     flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
     flyBodyVelocity.Parent = humanoidRootPart
     
-    -- Criar BodyGyro para estabilidade
     flyBodyGyro = Instance.new("BodyGyro")
     flyBodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
     flyBodyGyro.CFrame = humanoidRootPart.CFrame
     flyBodyGyro.Parent = humanoidRootPart
     
-    -- Tocar som de voo
     flySound:Play()
     
-    -- Loop de controle de voo
+    -- Loop de movimento
     coroutine.wrap(function()
         while isFlying and humanoidRootPart and humanoid do
-            local moveDirection = Vector3.new()
+            updateFlyMovement()
             
-            -- WASD / Setas
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up) then
-                moveDirection = moveDirection + humanoidRootPart.CFrame.LookVector
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.Down) then
-                moveDirection = moveDirection - humanoidRootPart.CFrame.LookVector
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.Left) then
-                moveDirection = moveDirection - humanoidRootPart.CFrame.RightVector
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) or UserInputService:IsKeyDown(Enum.KeyCode.Right) then
-                moveDirection = moveDirection + humanoidRootPart.CFrame.RightVector
-            end
-            
-            -- Subir e descer (Espaço e Shift)
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                moveDirection = moveDirection + Vector3.new(0, 1, 0)
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                moveDirection = moveDirection - Vector3.new(0, 1, 0)
-            end
-            
-            if moveDirection.Magnitude > 0 then
-                moveDirection = moveDirection.Unit
-                flyBodyVelocity.Velocity = moveDirection * FLY_SPEED
-            else
-                flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
-            end
-            
-            -- Atualizar gyro para olhar na direção do movimento
-            if moveDirection.Magnitude > 0 then
-                flyBodyGyro.CFrame = CFrame.lookAt(Vector3.new(), moveDirection)
-            else
-                flyBodyGyro.CFrame = humanoidRootPart.CFrame
-            end
-            
-            -- Desabilitar gravidade do humanoid
             humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
             humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
             humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
@@ -463,19 +622,23 @@ local function stopFly()
     
     isFlying = false
     flyStatusLabel.Text = "STATUS: DESLIGADO"
-    flyStatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    flyStatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
     flyButton.Text = "🕊️ ATIVAR VOO"
     flyButton.BackgroundColor3 = Color3.fromRGB(66, 200, 100)
     flyIcon.ImageColor3 = Color3.fromRGB(66, 200, 100)
+    flyCardStroke.Color = Color3.fromRGB(66, 200, 100)
     
-    -- Restaurar gravidade
+    if isMobile then
+        mobileFlyControls.Visible = false
+        flyUp = false
+        flyDown = false
+    end
+    
     Workspace.Gravity = defaultGravity
     
-    -- Remover partes de voo
     if flyBodyVelocity then flyBodyVelocity:Destroy() end
     if flyBodyGyro then flyBodyGyro:Destroy() end
     
-    -- Restaurar estados do humanoid
     if humanoid then
         humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
         humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
@@ -485,7 +648,6 @@ local function stopFly()
         humanoid.PlatformStand = false
     end
     
-    -- Parar som
     flySound:Stop()
 end
 
@@ -497,6 +659,25 @@ local function toggleFly()
     end
 end
 
+-- Botões mobile para voo
+if isMobile then
+    flyUpButton.MouseButton1Down:Connect(function()
+        flyUp = true
+    end)
+    
+    flyUpButton.MouseButton1Up:Connect(function()
+        flyUp = false
+    end)
+    
+    flyDownButton.MouseButton1Down:Connect(function()
+        flyDown = true
+    end)
+    
+    flyDownButton.MouseButton1Up:Connect(function()
+        flyDown = false
+    end)
+end
+
 -- FUNÇÃO PARA ATUALIZAR VELOCIDADE
 local function updateSpeed(newSpeed, fromBomba)
     if fromBomba and isBombaBoosted then return end
@@ -504,19 +685,23 @@ local function updateSpeed(newSpeed, fromBomba)
     currentSpeed = math.clamp(newSpeed, MIN_SPEED, MAX_SPEED)
     if humanoid and not isFlying then
         humanoid.WalkSpeed = currentSpeed
-    elseif humanoid and isFlying then
+    elseif isFlying then
         FLY_SPEED = currentSpeed
     end
     
-    local speedText = "VELOCIDADE ATUAL: " .. math.floor(currentSpeed)
+    speedValueLabel.Text = math.floor(currentSpeed) .. " / " .. MAX_SPEED
+    
     if isBombaBoosted then
-        speedText = "💣 " .. speedText .. " (BOOST ACTIVO!)"
+        speedLabel.Text = "💣 VELOCIDADE (BOOST ACTIVO!)"
+        speedValueLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    else
+        speedLabel.Text = "⚡ VELOCIDADE ATUAL"
+        speedValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     end
-    speedLabel.Text = speedText
     
     local percent = (currentSpeed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED)
     sliderFill:TweenSize(UDim2.new(percent, 0, 1, 0), "Out", "Quad", 0.1, true)
-    sliderButton:TweenPosition(UDim2.new(percent, -9, 0.5, -9), "Out", "Quad", 0.1, true)
+    sliderButton:TweenPosition(UDim2.new(percent, -11, 0.5, -11), "Out", "Quad", 0.1, true)
 end
 
 -- FUNÇÃO PARA ATIVAR BOOST DA BOMBA
@@ -534,8 +719,8 @@ local function activateBombaBoost()
     
     TweenService:Create(speedToggleButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(255, 100, 100)}):Play()
     TweenService:Create(speedIcon, TweenInfo.new(0.3), {ImageColor3 = Color3.fromRGB(255, 100, 100)}):Play()
+    TweenService:Create(speedCardStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(255, 100, 100)}):Play()
     
-    speedLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
     sliderFill.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
     
     bombTimerLabel.Visible = true
@@ -602,10 +787,12 @@ local function activateBombaBoost()
             isBombaBoosted = false
             isSpeedBoosted = false
             bombTimerLabel.Visible = false
-            speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            speedLabel.Text = "⚡ VELOCIDADE ATUAL"
+            speedValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
             sliderFill.BackgroundColor3 = Color3.fromRGB(66, 135, 245)
             TweenService:Create(speedToggleButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(66, 135, 245)}):Play()
             TweenService:Create(speedIcon, TweenInfo.new(0.3), {ImageColor3 = Color3.fromRGB(66, 135, 245)}):Play()
+            TweenService:Create(speedCardStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(66, 135, 245)}):Play()
             
             glowEffect:Destroy()
             particleEffect:Destroy()
@@ -660,6 +847,7 @@ local function setupBombaDetector()
                         itemName:find("bomba") or 
                         itemName:find("power") or 
                         itemName:find("speed") or
+                        itemName:find("boost") or
                         parentName:find("bomb") or
                         parentName:find("bomba")
         
@@ -725,10 +913,10 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- FUNÇÃO PARA CRIAR BOTÕES
+-- FUNÇÃO PARA CRIAR BOTÕES PROFISSIONAIS
 local function createModernButton(text, color, icon, callback)
     local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0, 175, 0, 48)
+    button.Size = UDim2.new(0, 190, 0, 52)
     button.Text = "  " .. text
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
     button.TextSize = 13
@@ -740,16 +928,22 @@ local function createModernButton(text, color, icon, callback)
     button.Parent = buttonsContainer
     
     local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 10)
+    btnCorner.CornerRadius = UDim.new(0, 12)
     btnCorner.Parent = button
     
     local btnIcon = Instance.new("ImageLabel")
-    btnIcon.Size = UDim2.new(0, 24, 0, 24)
-    btnIcon.Position = UDim2.new(0, 12, 0.5, -12)
+    btnIcon.Size = UDim2.new(0, 28, 0, 28)
+    btnIcon.Position = UDim2.new(0, 12, 0.5, -14)
     btnIcon.Image = icon
     btnIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
     btnIcon.BackgroundTransparency = 1
     btnIcon.Parent = button
+    
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Color = Color3.fromRGB(255, 255, 255)
+    btnStroke.Thickness = 0.5
+    btnStroke.Transparency = 0.8
+    btnStroke.Parent = button
     
     local originalColor = color
     
@@ -766,9 +960,9 @@ local function createModernButton(text, color, icon, callback)
         clickClone.Parent = button
         clickClone:Play()
         
-        TweenService:Create(button, TweenInfo.new(0.05), {Size = UDim2.new(0, 170, 0, 45)}):Play()
+        TweenService:Create(button, TweenInfo.new(0.05), {Size = UDim2.new(0, 185, 0, 49)}):Play()
         wait(0.05)
-        TweenService:Create(button, TweenInfo.new(0.05), {Size = UDim2.new(0, 175, 0, 48)}):Play()
+        TweenService:Create(button, TweenInfo.new(0.05), {Size = UDim2.new(0, 190, 0, 52)}):Play()
         callback()
     end)
     
@@ -821,25 +1015,46 @@ end)
 -- BOTÃO INFORMAÇÕES
 local infoButton = createModernButton("ℹ️ INFORMAÇÕES", Color3.fromRGB(156, 39, 176), "rbxassetid://6031094773", function()
     local infoFrame = Instance.new("Frame")
-    infoFrame.Size = UDim2.new(0, 340, 0, 260)
-    infoFrame.Position = UDim2.new(0.5, -170, 0.5, -130)
-    infoFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    infoFrame.Size = UDim2.new(0, 380, 0, 320)
+    infoFrame.Position = UDim2.new(0.5, -190, 0.5, -160)
+    infoFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
     infoFrame.BackgroundTransparency = 0.05
     infoFrame.BorderSizePixel = 0
     infoFrame.Parent = screenGui
     
     local infoCorner = Instance.new("UICorner")
-    infoCorner.CornerRadius = UDim.new(0, 12)
+    infoCorner.CornerRadius = UDim.new(0, 16)
     infoCorner.Parent = infoFrame
     
+    local infoStroke = Instance.new("UIStroke")
+    infoStroke.Color = Color3.fromRGB(66, 135, 245)
+    infoStroke.Thickness = 1
+    infoStroke.Transparency = 0.7
+    infoStroke.Parent = infoFrame
+    
+    local infoTitle = Instance.new("TextLabel")
+    infoTitle.Size = UDim2.new(1, 0, 0, 45)
+    infoTitle.Position = UDim2.new(0, 0, 0, 0)
+    infoTitle.BackgroundColor3 = Color3.fromRGB(66, 135, 245)
+    infoTitle.Text = "   INFORMAÇÕES DO SISTEMA"
+    infoTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    infoTitle.TextSize = 16
+    infoTitle.Font = Enum.Font.GothamBold
+    infoTitle.TextXAlignment = Enum.TextXAlignment.Left
+    infoTitle.Parent = infoFrame
+    
+    local infoTitleCorner = Instance.new("UICorner")
+    infoTitleCorner.CornerRadius = UDim.new(0, 16)
+    infoTitleCorner.Parent = infoTitle
+    
     local infoText = Instance.new("TextLabel")
-    infoText.Size = UDim2.new(1, -20, 1, -20)
-    infoText.Position = UDim2.new(0, 10, 0, 10)
+    infoText.Size = UDim2.new(1, -30, 1, -60)
+    infoText.Position = UDim2.new(0, 15, 0, 55)
     infoText.BackgroundTransparency = 1
     infoText.Text = [[
-⚡ SISTEMA RIAN STUDIOS V3.0 ⚡
+⚡ SISTEMA RIAN STUDIOS V4.0 ⚡
 
-🎮 CONTROLES:
+🎮 CONTROLES DE VELOCIDADE:
    • SLIDER: Ajuste a velocidade livremente
    • RÁPIDO: Alterna entre 16 ↔ 80
    • TURBO: Velocidade máxima (120)
@@ -847,33 +1062,37 @@ local infoButton = createModernButton("ℹ️ INFORMAÇÕES", Color3.fromRGB(156
 
 🕊️ SISTEMA DE VOO:
    • Botão ATIVAR VOO para voar
-   • WASD + ESPAÇO/SHIFT para controle
-   • Velocidade de voo acompanha slider
+   • PC: WASD + ESPAÇO/SHIFT
+   • MOBILE: Botões na tela + joystick
+   • Velocidade acompanha o slider
 
 👊 SISTEMA DE COMBATE:
    • Clique ESQUERDO: Combo de 3 socos
    • Dano: 15 por soco
 
 👑 CRIADO POR RIAN
-📅 VERSION 3.0 - TODOS OS DIREITOS RESERVADOS
+📅 VERSION 4.0 - COMPATÍVEL COM MOBILE
     ]]
-    infoText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    infoText.TextColor3 = Color3.fromRGB(220, 220, 220)
     infoText.TextSize = 12
     infoText.Font = Enum.Font.Gotham
     infoText.TextXAlignment = Enum.TextXAlignment.Left
+    infoText.TextYAlignment = Enum.TextYAlignment.Top
     infoText.Parent = infoFrame
     
     local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 80, 0, 30)
-    closeBtn.Position = UDim2.new(0.5, -40, 1, -40)
+    closeBtn.Size = UDim2.new(0, 100, 0, 35)
+    closeBtn.Position = UDim2.new(0.5, -50, 1, -50)
     closeBtn.Text = "FECHAR"
     closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.TextSize = 14
+    closeBtn.Font = Enum.Font.GothamBold
     closeBtn.BackgroundColor3 = Color3.fromRGB(66, 135, 245)
     closeBtn.BorderSizePixel = 0
     closeBtn.Parent = infoFrame
     
     local closeCorner = Instance.new("UICorner")
-    closeCorner.CornerRadius = UDim.new(0, 6)
+    closeCorner.CornerRadius = UDim.new(0, 8)
     closeCorner.Parent = closeBtn
     
     closeBtn.MouseButton1Click:Connect(function()
@@ -918,8 +1137,8 @@ turboButton.MouseButton1Click:Connect(function()
     TweenService:Create(speedToggleButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(76, 175, 80)}):Play()
     
     local turboEffect = Instance.new("Frame")
-    turboEffect.Size = UDim2.new(0, 300, 0, 60)
-    turboEffect.Position = UDim2.new(0.5, -150, 0.5, -30)
+    turboEffect.Size = UDim2.new(0, 320, 0, 60)
+    turboEffect.Position = UDim2.new(0.5, -160, 0.5, -30)
     turboEffect.BackgroundColor3 = Color3.fromRGB(255, 64, 64)
     turboEffect.BackgroundTransparency = 0.2
     turboEffect.BorderSizePixel = 0
@@ -938,7 +1157,7 @@ turboButton.MouseButton1Click:Connect(function()
     turboText.Font = Enum.Font.GothamBold
     turboText.Parent = turboEffect
     
-    TweenService:Create(turboEffect, TweenInfo.new(0.3), {BackgroundTransparency = 0.8, Position = UDim2.new(0.5, -150, 0.3, -30)}):Play()
+    TweenService:Create(turboEffect, TweenInfo.new(0.3), {BackgroundTransparency = 0.8, Position = UDim2.new(0.5, -160, 0.3, -30)}):Play()
     wait(2)
     TweenService:Create(turboEffect, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
     wait(0.3)
@@ -951,9 +1170,9 @@ flyButton.MouseButton1Click:Connect(function()
     clickClone.Parent = flyButton
     clickClone:Play()
     
-    TweenService:Create(flyButton, TweenInfo.new(0.05), {Size = UDim2.new(0, 115, 0, 35)}):Play()
+    TweenService:Create(flyButton, TweenInfo.new(0.05), {Size = UDim2.new(0, 125, 0, 39)}):Play()
     wait(0.05)
-    TweenService:Create(flyButton, TweenInfo.new(0.05), {Size = UDim2.new(0, 120, 0, 38)}):Play()
+    TweenService:Create(flyButton, TweenInfo.new(0.05), {Size = UDim2.new(0, 130, 0, 42)}):Play()
     
     toggleFly()
 end)
@@ -1041,14 +1260,41 @@ local function startComboAttack()
     performPunch()
 end
 
--- CLIQUE DO MOUSE
+-- CLIQUE DO MOUSE (PC) e TOQUE (MOBILE)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
+    -- Para PC: clique esquerdo do mouse
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         local character = player.Character
         if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
             startComboAttack()
+        end
+    end
+    
+    -- Para mobile: toque na tela (se não estiver clicando em botões da UI)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        local character = player.Character
+        if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
+            -- Verificar se não clicou em nenhum botão da UI
+            local guiObjects = screenGui:GetDescendants()
+            local hitButton = false
+            for _, obj in pairs(guiObjects) do
+                if obj:IsA("TextButton") or obj:IsA("ImageButton") then
+                    if obj.AbsoluteSize.X > 0 and obj.Visible then
+                        local mousePos = input.Position
+                        local absPos = obj.AbsolutePosition
+                        if mousePos.X >= absPos.X and mousePos.X <= absPos.X + obj.AbsoluteSize.X and
+                           mousePos.Y >= absPos.Y and mousePos.Y <= absPos.Y + obj.AbsoluteSize.Y then
+                            hitButton = true
+                            break
+                        end
+                    end
+                end
+            end
+            if not hitButton then
+                startComboAttack()
+            end
         end
     end
 end)
@@ -1069,26 +1315,28 @@ player.CharacterAdded:Connect(function(newCharacter)
     bombTimerLabel.Visible = false
     TweenService:Create(speedToggleButton, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(66, 135, 245)}):Play()
     TweenService:Create(speedIcon, TweenInfo.new(0.3), {ImageColor3 = Color3.fromRGB(66, 135, 245)}):Play()
-    speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TweenService:Create(speedCardStroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(66, 135, 245)}):Play()
     sliderFill.BackgroundColor3 = Color3.fromRGB(66, 135, 245)
 end)
 
 -- FUNÇÃO ABRIR/FECHAR UI
+local isUIOpen = false
+
 local function toggleUI()
     isUIOpen = not isUIOpen
     
     if isUIOpen then
         mainContainer.Visible = true
         mainContainer.BackgroundTransparency = 1
-        mainContainer.Position = UDim2.new(0.5, -210, 0.5, -250)
-        TweenService:Create(mainContainer, TweenInfo.new(0.4, Enum.EasingStyle.Back), {BackgroundTransparency = 0.08}):Play()
-        TweenService:Create(mainContainer, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, -210, 0.5, -310)}):Play()
-        TweenService:Create(floatingButton, TweenInfo.new(0.3), {Size = UDim2.new(0, 55, 0, 55), ImageColor3 = Color3.fromRGB(100, 200, 255)}):Play()
+        mainContainer.Position = UDim2.new(0.5, -225, 0.5, -300)
+        TweenService:Create(mainContainer, TweenInfo.new(0.4, Enum.EasingStyle.Back), {BackgroundTransparency = 0.05}):Play()
+        TweenService:Create(mainContainer, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, -225, 0.5, -350)}):Play()
+        TweenService:Create(floatingButton, TweenInfo.new(0.3), {Size = UDim2.new(0, 60, 0, 60), ImageColor3 = Color3.fromRGB(100, 200, 255)}):Play()
     else
-        TweenService:Create(mainContainer, TweenInfo.new(0.3), {BackgroundTransparency = 1, Position = UDim2.new(0.5, -210, 0.5, -250)}):Play()
+        TweenService:Create(mainContainer, TweenInfo.new(0.3), {BackgroundTransparency = 1, Position = UDim2.new(0.5, -225, 0.5, -300)}):Play()
         wait(0.3)
         mainContainer.Visible = false
-        TweenService:Create(floatingButton, TweenInfo.new(0.3), {Size = UDim2.new(0, 65, 0, 65), ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+        TweenService:Create(floatingButton, TweenInfo.new(0.3), {Size = UDim2.new(0, 70, 0, 70), ImageColor3 = Color3.fromRGB(255, 255, 255)}):Play()
     end
 end
 
@@ -1101,17 +1349,20 @@ setupBombaDetector()
 -- INICIALIZAR VELOCIDADE
 updateSpeed(NORMAL_SPEED)
 
--- Animação de pulso do botão flutuante
+-- Animação do botão flutuante
 coroutine.wrap(function()
     while true do
-        wait(1)
+        wait(1.5)
         if not isUIOpen then
-            TweenService:Create(floatingButton, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {Size = UDim2.new(0, 70, 0, 70)}):Play()
+            TweenService:Create(floatingButton, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {Size = UDim2.new(0, 75, 0, 75)}):Play()
             wait(0.25)
-            TweenService:Create(floatingButton, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {Size = UDim2.new(0, 65, 0, 65)}):Play()
+            TweenService:Create(floatingButton, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {Size = UDim2.new(0, 70, 0, 70)}):Play()
         end
     end
 end)()
 
-print("✅ SISTEMA RIAN STUDIOS V3.0 CARREGADO!")
-print("✅ FUNCIONALIDADES: VELOCIDADE | VOO | BOOST | COMBATE")
+print("════════════════════════════════════════════════════════════════")
+print("✅ SISTEMA RIAN STUDIOS V4.0 CARREGADO COM SUCESSO!")
+print("✅ FUNCIONALIDADES: VELOCIDADE | VOO MOBILE | BOOST | COMBATE")
+print("✅ COMPATÍVEL COM PC E MOBILE!")
+print("════════════════════════════════════════════════════════════════")

@@ -8,8 +8,8 @@
     ║     ██║  ██║██║██║  ██║██║ ╚████║    ███████║   ██║   ╚██████╔╝██████╔╝ ██║██║  ██║██║ ╚████║     ║
     ║     ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝    ╚══════╝   ╚═╝    ╚═════╝ ╚═════╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝     ║
     ║                                                                                                      ║
-    ║              SISTEMA V8.0 - RIAN STUDIOS - COLETA DE BLOCOS + ANTI-BAN                               ║
-    ║         VELOCIDADE | VOO | AIMBOT | INVINCIBLE | COLETA | ANTI-EXPULSÃO                              ║
+    ║              SISTEMA V9.0 - RIAN STUDIOS - AUMENTAR CAPACIDADE DE BLOCOS                             ║
+    ║         VELOCIDADE | VOO | AIMBOT | INVINCIBLE | CAPACIDADE DE BLOCOS | ANTI-EXPULSÃO                ║
     ║                                                                                                      ║
     ╚══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ]]
@@ -20,7 +20,6 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Variáveis do jogador
@@ -32,6 +31,12 @@ local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 -- Detecta mobile
 local isMobile = UserInputService.TouchEnabled
 
+-- ============ CONFIGURAÇÃO DE CAPACIDADE DE BLOCOS ============
+-- Isso vai MODIFICAR O LIMITE MÁXIMO DE BLOCOS QUE O JOGADOR PODE PEGAR
+local maxBlockCapacity = 250 -- Capacidade máxima de blocos (pode ajustar de 30 a 250)
+local minBlockCapacity = 30
+local currentBlockCount = 0 -- Quantos blocos o jogador tem atualmente
+
 -- ============ ANTI-BAN / ANTI-EXPULSÃO ============
 local antiBanEnabled = true
 local lastHeartbeat = tick()
@@ -41,16 +46,10 @@ local function preventKick()
         while antiBanEnabled and player do
             wait(25)
             lastHeartbeat = tick()
-            -- Simula atividade para evitar timeout
             pcall(function()
                 local stats = player:FindFirstChild("leaderstats")
                 if stats then
-                    -- Apenas toca em algo para mostrar atividade
-                    local value = stats:FindFirstChild("Points")
-                    if value then
-                        -- Leitura simples, sem modificação
-                        local _ = value.Value
-                    end
+                    local _ = stats:FindFirstChild("Points")
                 end
             end)
         end
@@ -60,28 +59,8 @@ end
 local function setupAntiBan()
     pcall(function()
         preventKick()
-        
-        -- Prevenir desconexão por inatividade
-        local bindable = Instance.new("BindableEvent")
-        bindable.Name = "HeartbeatEvent"
-        bindable.Parent = player
-        
         RunService.Heartbeat:Connect(function()
             lastHeartbeat = tick()
-        end)
-        
-        -- Reconexão automática
-        game:GetService("CoreGui").ChildAdded:Connect(function(child)
-            if child.Name == "RobloxPromptGui" then
-                wait(0.5)
-                local prompts = child:GetDescendants()
-                for _, prompt in pairs(prompts) do
-                    if prompt.Name == "ErrorPrompt" then
-                        wait(1)
-                        -- Tenta manter a conexão
-                    end
-                end
-            end
         end)
     end)
 end
@@ -118,19 +97,10 @@ local comboCount = 0
 local aimbotEnabled = false
 local aimbotRange = 100
 local aimbotSmoothness = 0.3
-local currentTarget = nil
 local aimbotConnection = nil
 
 -- Configurações de INVULNERABILIDADE
 local invincibleEnabled = false
-
--- ============ SISTEMA DE COLETA DE BLOCOS ============
-local blocksCollected = 0
-local targetBlocks = 100
-local blockCollectionRange = 20
-local autoCollectEnabled = false
-local collectedBlocksList = {}
-local autoCollectConnection = nil
 
 -- Sons
 local soundService = game:GetService("SoundService")
@@ -143,7 +113,70 @@ local function playSound(soundId, volume)
     game:GetService("Debris"):AddItem(sound, 2)
 end
 
--- CRIAR UI PRINCIPAL
+-- ============ FUNÇÃO PARA AUMENTAR CAPACIDADE DE BLOCOS ============
+-- Esta função modifica o limite máximo de blocos que o jogador pode carregar
+local function increaseBlockCapacity(newCapacity)
+    newCapacity = math.clamp(newCapacity, minBlockCapacity, 250)
+    maxBlockCapacity = newCapacity
+    
+    -- Tenta modificar o leaderstats (se existir)
+    pcall(function()
+        local leaderstats = player:FindFirstChild("leaderstats")
+        if leaderstats then
+            -- Procura por stats de blocos
+            local blockStat = leaderstats:FindFirstChild("Blocks") or 
+                              leaderstats:FindFirstChild("Blocos") or 
+                              leaderstats:FindFirstChild("Capacity") or
+                              leaderstats:FindFirstChild("Limite")
+            if blockStat then
+                blockStat.Value = maxBlockCapacity
+            end
+            
+            -- Procura por stat de capacidade máxima
+            local maxStat = leaderstats:FindFirstChild("MaxBlocks") or 
+                           leaderstats:FindFirstChild("Capacidade") or
+                           leaderstats:FindFirstChild("MaxCapacity")
+            if maxStat then
+                maxStat.Value = maxBlockCapacity
+            end
+        end
+    end)
+    
+    -- Tenta modificar atributos do jogador
+    pcall(function()
+        player:SetAttribute("MaxBlocks", maxBlockCapacity)
+        player:SetAttribute("BlockCapacity", maxBlockCapacity)
+        player:SetAttribute("CapacidadeBlocos", maxBlockCapacity)
+    end)
+    
+    -- Tenta modificar o inventário (se for um jogo com ferramentas)
+    pcall(function()
+        local backpack = player:FindFirstChild("Backpack")
+        if backpack then
+            backpack:SetAttribute("MaxBlocks", maxBlockCapacity)
+        end
+    end)
+    
+    -- Força atualização do limite em qualquer sistema remoto
+    pcall(function()
+        local remote = ReplicatedStorage:FindFirstChild("UpdateBlockCapacity") or
+                       ReplicatedStorage:FindFirstChild("SetMaxBlocks") or
+                       ReplicatedStorage:FindFirstChild("UpdateCapacity")
+        if remote then
+            remote:FireServer(maxBlockCapacity)
+        end
+    end)
+    
+    print("[SISTEMA] Capacidade de blocos aumentada para: " .. maxBlockCapacity)
+end
+
+-- Função para aumentar a capacidade gradualmente
+local function addBlockCapacity(amount)
+    local newCapacity = maxBlockCapacity + amount
+    increaseBlockCapacity(newCapacity)
+end
+
+-- ============ CRIAR UI PRINCIPAL ============
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "RianStudiosUI"
 screenGui.Parent = player:WaitForChild("PlayerGui")
@@ -170,8 +203,8 @@ floatingCorner.Parent = floatingButton
 -- CONTAINER PRINCIPAL
 local mainContainer = Instance.new("ScrollingFrame")
 mainContainer.Name = "MainContainer"
-mainContainer.Size = isMobile and UDim2.new(0.92, 0, 0.85, 0) or UDim2.new(0, 380, 0, 600)
-mainContainer.Position = isMobile and UDim2.new(0.04, 0, 0.075, 0) or UDim2.new(0.5, -190, 0.5, -300)
+mainContainer.Size = isMobile and UDim2.new(0.92, 0, 0.85, 0) or UDim2.new(0, 380, 0, 650)
+mainContainer.Position = isMobile and UDim2.new(0.04, 0, 0.075, 0) or UDim2.new(0.5, -190, 0.5, -325)
 mainContainer.BackgroundColor3 = Color3.fromRGB(12, 12, 22)
 mainContainer.BackgroundTransparency = 0.08
 mainContainer.BorderSizePixel = 0
@@ -180,7 +213,7 @@ mainContainer.Parent = screenGui
 mainContainer.ClipsDescendants = false
 mainContainer.ScrollBarThickness = 3
 mainContainer.ScrollBarImageColor3 = Color3.fromRGB(66, 135, 245)
-mainContainer.CanvasSize = UDim2.new(0, 0, 0, 950)
+mainContainer.CanvasSize = UDim2.new(0, 0, 0, 850)
 
 local mainCorner = Instance.new("UICorner")
 mainCorner.CornerRadius = UDim.new(0, 20)
@@ -215,7 +248,7 @@ local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, -80, 0, 30)
 titleLabel.Position = UDim2.new(0, 15, 0, 8)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "⚡ RIAN STUDIOS V8.0"
+titleLabel.Text = "⚡ RIAN STUDIOS V9.0"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextSize = isMobile and 16 or 14
 titleLabel.Font = Enum.Font.GothamBold
@@ -226,7 +259,7 @@ local subtitleLabel = Instance.new("TextLabel")
 subtitleLabel.Size = UDim2.new(1, -80, 0, 20)
 subtitleLabel.Position = UDim2.new(0, 15, 0, 35)
 subtitleLabel.BackgroundTransparency = 1
-subtitleLabel.Text = "SPEED | FLY | AIMBOT | INVINCIBLE | COLLECT"
+subtitleLabel.Text = "SPEED | FLY | AIMBOT | INVINCIBLE | +BLOCOS"
 subtitleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 subtitleLabel.TextSize = isMobile and 10 or 9
 subtitleLabel.Font = Enum.Font.Gotham
@@ -241,10 +274,180 @@ closeButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.BackgroundTransparency = 1
 closeButton.Parent = titleBar
 
+-- ============ CARD DE CAPACIDADE DE BLOCOS (PRINCIPAL) ============
+local capacityCard = Instance.new("Frame")
+capacityCard.Size = UDim2.new(1, -24, 0, 170)
+capacityCard.Position = UDim2.new(0, 12, 0, 75)
+capacityCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
+capacityCard.BackgroundTransparency = 0.3
+capacityCard.BorderSizePixel = 0
+capacityCard.Parent = mainContainer
+
+local capacityCardCorner = Instance.new("UICorner")
+capacityCardCorner.CornerRadius = UDim.new(0, 14)
+capacityCardCorner.Parent = capacityCard
+
+local capacityCardStroke = Instance.new("UIStroke")
+capacityCardStroke.Color = Color3.fromRGB(255, 215, 0)
+capacityCardStroke.Thickness = 2
+capacityCardStroke.Transparency = 0.5
+capacityCardStroke.Parent = capacityCard
+
+local capacityIcon = Instance.new("ImageLabel")
+capacityIcon.Size = UDim2.new(0, 45, 0, 45)
+capacityIcon.Position = UDim2.new(0, 15, 0, 15)
+capacityIcon.Image = "rbxassetid://6031094773"
+capacityIcon.ImageColor3 = Color3.fromRGB(255, 215, 0)
+capacityIcon.BackgroundTransparency = 1
+capacityIcon.Parent = capacityCard
+
+local capacityTitleLabel = Instance.new("TextLabel")
+capacityTitleLabel.Size = UDim2.new(1, -75, 0, 25)
+capacityTitleLabel.Position = UDim2.new(0, 70, 0, 15)
+capacityTitleLabel.BackgroundTransparency = 1
+capacityTitleLabel.Text = "📦 CAPACIDADE DE BLOCOS"
+capacityTitleLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+capacityTitleLabel.TextSize = isMobile and 13 or 11
+capacityTitleLabel.Font = Enum.Font.GothamBold
+capacityTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+capacityTitleLabel.Parent = capacityCard
+
+local capacityValueLabel = Instance.new("TextLabel")
+capacityValueLabel.Size = UDim2.new(1, -75, 0, 50)
+capacityValueLabel.Position = UDim2.new(0, 70, 0, 40)
+capacityValueLabel.BackgroundTransparency = 1
+capacityValueLabel.Text = maxBlockCapacity
+capacityValueLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+capacityValueLabel.TextSize = isMobile and 42 or 36
+capacityValueLabel.Font = Enum.Font.GothamBold
+capacityValueLabel.TextXAlignment = Enum.TextXAlignment.Left
+capacityValueLabel.Parent = capacityCard
+
+local capacityMaxLabel = Instance.new("TextLabel")
+capacityMaxLabel.Size = UDim2.new(1, -75, 0, 25)
+capacityMaxLabel.Position = UDim2.new(0, 70, 0, 90)
+capacityMaxLabel.BackgroundTransparency = 1
+capacityMaxLabel.Text = "/ 250 (MÁXIMO)"
+capacityMaxLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+capacityMaxLabel.TextSize = isMobile and 14 or 12
+capacityMaxLabel.Font = Enum.Font.Gotham
+capacityMaxLabel.TextXAlignment = Enum.TextXAlignment.Left
+capacityMaxLabel.Parent = capacityCard
+
+-- SLIDER PARA AJUSTAR CAPACIDADE
+local capacitySliderBg = Instance.new("Frame")
+capacitySliderBg.Size = UDim2.new(0.88, 0, 0, 10)
+capacitySliderBg.Position = UDim2.new(0.06, 0, 0.85, 0)
+capacitySliderBg.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+capacitySliderBg.BorderSizePixel = 0
+capacitySliderBg.Parent = capacityCard
+
+local capacitySliderBgCorner = Instance.new("UICorner")
+capacitySliderBgCorner.CornerRadius = UDim.new(1, 0)
+capacitySliderBgCorner.Parent = capacitySliderBg
+
+local capacitySliderFill = Instance.new("Frame")
+capacitySliderFill.Size = UDim2.new((maxBlockCapacity - minBlockCapacity) / (250 - minBlockCapacity), 0, 1, 0)
+capacitySliderFill.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+capacitySliderFill.BorderSizePixel = 0
+capacitySliderFill.Parent = capacitySliderBg
+
+local capacitySliderFillCorner = Instance.new("UICorner")
+capacitySliderFillCorner.CornerRadius = UDim.new(1, 0)
+capacitySliderFillCorner.Parent = capacitySliderFill
+
+local capacitySliderButton = Instance.new("ImageButton")
+capacitySliderButton.Size = UDim2.new(0, 24, 0, 24)
+capacitySliderButton.Position = UDim2.new((maxBlockCapacity - minBlockCapacity) / (250 - minBlockCapacity), -12, 0.5, -12)
+capacitySliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+capacitySliderButton.Image = "rbxassetid://266788897"
+capacitySliderButton.ScaleType = Enum.ScaleType.Fit
+capacitySliderButton.BackgroundTransparency = 1
+capacitySliderButton.Parent = capacityCard
+
+-- Labels min/max do slider
+local capacityMinLabel = Instance.new("TextLabel")
+capacityMinLabel.Size = UDim2.new(0, 30, 0, 20)
+capacityMinLabel.Position = UDim2.new(0.04, 0, 0.85, -8)
+capacityMinLabel.BackgroundTransparency = 1
+capacityMinLabel.Text = "30"
+capacityMinLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+capacityMinLabel.TextSize = 10
+capacityMinLabel.Font = Enum.Font.Gotham
+capacityMinLabel.Parent = capacityCard
+
+local capacityMaxLabel2 = Instance.new("TextLabel")
+capacityMaxLabel2.Size = UDim2.new(0, 30, 0, 20)
+capacityMaxLabel2.Position = UDim2.new(0.88, 0, 0.85, -8)
+capacityMaxLabel2.BackgroundTransparency = 1
+capacityMaxLabel2.Text = "250"
+capacityMaxLabel2.TextColor3 = Color3.fromRGB(150, 150, 150)
+capacityMaxLabel2.TextSize = 10
+capacityMaxLabel2.Font = Enum.Font.Gotham
+capacityMaxLabel2.Parent = capacityCard
+
+-- Botões de ação para capacidade
+local capacityButtonsContainer = Instance.new("Frame")
+capacityButtonsContainer.Size = UDim2.new(1, 0, 0, 40)
+capacityButtonsContainer.Position = UDim2.new(0, 0, 1, -40)
+capacityButtonsContainer.BackgroundTransparency = 1
+capacityButtonsContainer.Parent = capacityCard
+
+local capacityLayout = Instance.new("UIListLayout")
+capacityLayout.FillDirection = Enum.FillDirection.Horizontal
+capacityLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+capacityLayout.Padding = UDim.new(0, 10)
+capacityLayout.Parent = capacityButtonsContainer
+
+-- Botão +50
+local add50Button = Instance.new("TextButton")
+add50Button.Size = UDim2.new(0, isMobile and 80 or 70, 0, isMobile and 34 or 30)
+add50Button.Text = "+50"
+add50Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+add50Button.TextSize = isMobile and 14 or 12
+add50Button.Font = Enum.Font.GothamBold
+add50Button.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
+add50Button.BorderSizePixel = 0
+add50Button.Parent = capacityButtonsContainer
+
+local add50Corner = Instance.new("UICorner")
+add50Corner.CornerRadius = UDim.new(0, 8)
+add50Corner.Parent = add50Button
+
+-- Botão +100
+local add100Button = Instance.new("TextButton")
+add100Button.Size = UDim2.new(0, isMobile and 80 or 70, 0, isMobile and 34 or 30)
+add100Button.Text = "+100"
+add100Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+add100Button.TextSize = isMobile and 14 or 12
+add100Button.Font = Enum.Font.GothamBold
+add100Button.BackgroundColor3 = Color3.fromRGB(255, 152, 0)
+add100Button.BorderSizePixel = 0
+add100Button.Parent = capacityButtonsContainer
+
+local add100Corner = Instance.new("UICorner")
+add100Corner.CornerRadius = UDim.new(0, 8)
+add100Corner.Parent = add100Button
+
+-- Botão Máximo (250)
+local maxButton = Instance.new("TextButton")
+maxButton.Size = UDim2.new(0, isMobile and 80 or 70, 0, isMobile and 34 or 30)
+maxButton.Text = "MAX"
+maxButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+maxButton.TextSize = isMobile and 14 or 12
+maxButton.Font = Enum.Font.GothamBold
+maxButton.BackgroundColor3 = Color3.fromRGB(255, 64, 64)
+maxButton.BorderSizePixel = 0
+maxButton.Parent = capacityButtonsContainer
+
+local maxCorner = Instance.new("UICorner")
+maxCorner.CornerRadius = UDim.new(0, 8)
+maxCorner.Parent = maxButton
+
 -- ============ CARD DE VELOCIDADE ============
 local speedCard = Instance.new("Frame")
-speedCard.Size = UDim2.new(1, -24, 0, 140)
-speedCard.Position = UDim2.new(0, 12, 0, 75)
+speedCard.Size = UDim2.new(1, -24, 0, 130)
+speedCard.Position = UDim2.new(0, 12, 0, 260)
 speedCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
 speedCard.BackgroundTransparency = 0.3
 speedCard.BorderSizePixel = 0
@@ -262,7 +465,7 @@ speedCardStroke.Parent = speedCard
 
 local speedIcon = Instance.new("ImageLabel")
 speedIcon.Size = UDim2.new(0, 40, 0, 40)
-speedIcon.Position = UDim2.new(0, 15, 0, 15)
+speedIcon.Position = UDim2.new(0, 15, 0, 12)
 speedIcon.Image = "rbxassetid://6031094773"
 speedIcon.ImageColor3 = Color3.fromRGB(66, 135, 245)
 speedIcon.BackgroundTransparency = 1
@@ -270,7 +473,7 @@ speedIcon.Parent = speedCard
 
 local speedTitleLabel = Instance.new("TextLabel")
 speedTitleLabel.Size = UDim2.new(1, -70, 0, 25)
-speedTitleLabel.Position = UDim2.new(0, 65, 0, 15)
+speedTitleLabel.Position = UDim2.new(0, 65, 0, 12)
 speedTitleLabel.BackgroundTransparency = 1
 speedTitleLabel.Text = "VELOCIDADE"
 speedTitleLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
@@ -280,28 +483,28 @@ speedTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 speedTitleLabel.Parent = speedCard
 
 local speedValueLabel = Instance.new("TextLabel")
-speedValueLabel.Size = UDim2.new(1, -70, 0, 40)
-speedValueLabel.Position = UDim2.new(0, 65, 0, 38)
+speedValueLabel.Size = UDim2.new(1, -70, 0, 35)
+speedValueLabel.Position = UDim2.new(0, 65, 0, 35)
 speedValueLabel.BackgroundTransparency = 1
 speedValueLabel.Text = math.floor(currentSpeed)
 speedValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-speedValueLabel.TextSize = isMobile and 34 or 28
+speedValueLabel.TextSize = isMobile and 28 or 24
 speedValueLabel.Font = Enum.Font.GothamBold
 speedValueLabel.TextXAlignment = Enum.TextXAlignment.Left
 speedValueLabel.Parent = speedCard
 
 local speedMaxLabel = Instance.new("TextLabel")
 speedMaxLabel.Size = UDim2.new(1, -70, 0, 20)
-speedMaxLabel.Position = UDim2.new(0, 65, 0, 78)
+speedMaxLabel.Position = UDim2.new(0, 65, 0, 70)
 speedMaxLabel.BackgroundTransparency = 1
 speedMaxLabel.Text = "/ " .. MAX_SPEED
 speedMaxLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-speedMaxLabel.TextSize = isMobile and 14 or 12
+speedMaxLabel.TextSize = isMobile and 12 or 10
 speedMaxLabel.Font = Enum.Font.Gotham
 speedMaxLabel.TextXAlignment = Enum.TextXAlignment.Left
 speedMaxLabel.Parent = speedCard
 
--- SLIDER DE VELOCIDADE
+-- SLIDER VELOCIDADE
 local sliderBg = Instance.new("Frame")
 sliderBg.Size = UDim2.new(0.88, 0, 0, 8)
 sliderBg.Position = UDim2.new(0.06, 0, 0.85, 0)
@@ -335,7 +538,7 @@ sliderButton.Parent = speedCard
 -- ============ CARD DE VOO ============
 local flyCard = Instance.new("Frame")
 flyCard.Size = UDim2.new(1, -24, 0, 100)
-flyCard.Position = UDim2.new(0, 12, 0, 230)
+flyCard.Position = UDim2.new(0, 12, 0, 405)
 flyCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
 flyCard.BackgroundTransparency = 0.3
 flyCard.BorderSizePixel = 0
@@ -388,7 +591,7 @@ flyButtonCorner.Parent = flyButton
 -- ============ CARD DE AIMBOT ============
 local aimbotCard = Instance.new("Frame")
 aimbotCard.Size = UDim2.new(1, -24, 0, 100)
-aimbotCard.Position = UDim2.new(0, 12, 0, 345)
+aimbotCard.Position = UDim2.new(0, 12, 0, 520)
 aimbotCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
 aimbotCard.BackgroundTransparency = 0.3
 aimbotCard.BorderSizePixel = 0
@@ -441,7 +644,7 @@ aimbotButtonCorner.Parent = aimbotButton
 -- ============ CARD DE INVULNERABILIDADE ============
 local invincibleCard = Instance.new("Frame")
 invincibleCard.Size = UDim2.new(1, -24, 0, 100)
-invincibleCard.Position = UDim2.new(0, 12, 0, 460)
+invincibleCard.Position = UDim2.new(0, 12, 0, 635)
 invincibleCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
 invincibleCard.BackgroundTransparency = 0.3
 invincibleCard.BorderSizePixel = 0
@@ -491,214 +694,6 @@ local invincibleButtonCorner = Instance.new("UICorner")
 invincibleButtonCorner.CornerRadius = UDim.new(0, 10)
 invincibleButtonCorner.Parent = invincibleButton
 
--- ============ CARD DE COLETA ============
-local collectCard = Instance.new("Frame")
-collectCard.Size = UDim2.new(1, -24, 0, 140)
-collectCard.Position = UDim2.new(0, 12, 0, 575)
-collectCard.BackgroundColor3 = Color3.fromRGB(20, 20, 32)
-collectCard.BackgroundTransparency = 0.3
-collectCard.BorderSizePixel = 0
-collectCard.Parent = mainContainer
-
-local collectCardCorner = Instance.new("UICorner")
-collectCardCorner.CornerRadius = UDim.new(0, 14)
-collectCardCorner.Parent = collectCard
-
-local collectCardStroke = Instance.new("UIStroke")
-collectCardStroke.Color = Color3.fromRGB(255, 215, 0)
-collectCardStroke.Thickness = 1
-collectCardStroke.Transparency = 0.6
-collectCardStroke.Parent = collectCard
-
-local collectIcon = Instance.new("ImageLabel")
-collectIcon.Size = UDim2.new(0, 40, 0, 40)
-collectIcon.Position = UDim2.new(0, 15, 0, 12)
-collectIcon.Image = "rbxassetid://6031094773"
-collectIcon.ImageColor3 = Color3.fromRGB(255, 215, 0)
-collectIcon.BackgroundTransparency = 1
-collectIcon.Parent = collectCard
-
-local collectTitleLabel = Instance.new("TextLabel")
-collectTitleLabel.Size = UDim2.new(1, -70, 0, 25)
-collectTitleLabel.Position = UDim2.new(0, 65, 0, 12)
-collectTitleLabel.BackgroundTransparency = 1
-collectTitleLabel.Text = "📦 COLETA DE BLOCOS"
-collectTitleLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-collectTitleLabel.TextSize = isMobile and 12 or 11
-collectTitleLabel.Font = Enum.Font.Gotham
-collectTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-collectTitleLabel.Parent = collectCard
-
-local collectValueLabel = Instance.new("TextLabel")
-collectValueLabel.Size = UDim2.new(1, -70, 0, 35)
-collectValueLabel.Position = UDim2.new(0, 65, 0, 37)
-collectValueLabel.BackgroundTransparency = 1
-collectValueLabel.Text = blocksCollected .. " / " .. targetBlocks
-collectValueLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-collectValueLabel.TextSize = isMobile and 20 or 18
-collectValueLabel.Font = Enum.Font.GothamBold
-collectValueLabel.TextXAlignment = Enum.TextXAlignment.Left
-collectValueLabel.Parent = collectCard
-
--- Barra de progresso da coleta
-local collectProgressBg = Instance.new("Frame")
-collectProgressBg.Size = UDim2.new(0.88, 0, 0, 8)
-collectProgressBg.Position = UDim2.new(0.06, 0, 0.7, 0)
-collectProgressBg.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-collectProgressBg.BorderSizePixel = 0
-collectProgressBg.Parent = collectCard
-
-local collectProgressBgCorner = Instance.new("UICorner")
-collectProgressBgCorner.CornerRadius = UDim.new(1, 0)
-collectProgressBgCorner.Parent = collectProgressBg
-
-local collectProgressFill = Instance.new("Frame")
-collectProgressFill.Size = UDim2.new(blocksCollected / targetBlocks, 0, 1, 0)
-collectProgressFill.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
-collectProgressFill.BorderSizePixel = 0
-collectProgressFill.Parent = collectProgressBg
-
-local collectProgressFillCorner = Instance.new("UICorner")
-collectProgressFillCorner.CornerRadius = UDim.new(1, 0)
-collectProgressFillCorner.Parent = collectProgressFill
-
--- Slider da meta
-local targetSliderBg = Instance.new("Frame")
-targetSliderBg.Size = UDim2.new(0.7, 0, 0, 6)
-targetSliderBg.Position = UDim2.new(0.15, 0, 0.85, 0)
-targetSliderBg.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
-targetSliderBg.BorderSizePixel = 0
-targetSliderBg.Parent = collectCard
-
-local targetSliderBgCorner = Instance.new("UICorner")
-targetSliderBgCorner.CornerRadius = UDim.new(1, 0)
-targetSliderBgCorner.Parent = targetSliderBg
-
-local targetSliderFill = Instance.new("Frame")
-targetSliderFill.Size = UDim2.new((targetBlocks - 30) / (250 - 30), 0, 1, 0)
-targetSliderFill.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
-targetSliderFill.BorderSizePixel = 0
-targetSliderFill.Parent = targetSliderBg
-
-local targetSliderFillCorner = Instance.new("UICorner")
-targetSliderFillCorner.CornerRadius = UDim.new(1, 0)
-targetSliderFillCorner.Parent = targetSliderFill
-
-local targetSliderButton = Instance.new("ImageButton")
-targetSliderButton.Size = UDim2.new(0, 18, 0, 18)
-targetSliderButton.Position = UDim2.new((targetBlocks - 30) / (250 - 30), -9, 0.5, -9)
-targetSliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-targetSliderButton.Image = "rbxassetid://266788897"
-targetSliderButton.ScaleType = Enum.ScaleType.Fit
-targetSliderButton.BackgroundTransparency = 1
-targetSliderButton.Parent = collectCard
-
-local targetMinLabel = Instance.new("TextLabel")
-targetMinLabel.Size = UDim2.new(0, 25, 0, 15)
-targetMinLabel.Position = UDim2.new(0.1, 0, 0.85, -5)
-targetMinLabel.BackgroundTransparency = 1
-targetMinLabel.Text = "30"
-targetMinLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-targetMinLabel.TextSize = 9
-targetMinLabel.Font = Enum.Font.Gotham
-targetMinLabel.Parent = collectCard
-
-local targetMaxLabel = Instance.new("TextLabel")
-targetMaxLabel.Size = UDim2.new(0, 25, 0, 15)
-targetMaxLabel.Position = UDim2.new(0.85, 0, 0.85, -5)
-targetMaxLabel.BackgroundTransparency = 1
-targetMaxLabel.Text = "250"
-targetMaxLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-targetMaxLabel.TextSize = 9
-targetMaxLabel.Font = Enum.Font.Gotham
-targetMaxLabel.Parent = collectCard
-
--- Botões de coleta
-local autoCollectButton = Instance.new("TextButton")
-autoCollectButton.Size = UDim2.new(0, isMobile and 100 or 90, 0, isMobile and 34 or 30)
-autoCollectButton.Position = UDim2.new(0.5, isMobile and -105 or -95, 1, -10)
-autoCollectButton.Text = "🔄 AUTO"
-autoCollectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-autoCollectButton.TextSize = isMobile and 11 or 10
-autoCollectButton.Font = Enum.Font.GothamBold
-autoCollectButton.BackgroundColor3 = Color3.fromRGB(255, 152, 0)
-autoCollectButton.BorderSizePixel = 0
-autoCollectButton.Parent = collectCard
-
-local autoCollectCorner = Instance.new("UICorner")
-autoCollectCorner.CornerRadius = UDim.new(0, 8)
-autoCollectCorner.Parent = autoCollectButton
-
-local resetCollectButton = Instance.new("TextButton")
-resetCollectButton.Size = UDim2.new(0, isMobile and 80 or 70, 0, isMobile and 34 or 30)
-resetCollectButton.Position = UDim2.new(0.5, isMobile and 15 or 10, 1, -10)
-resetCollectButton.Text = "🔄 ZERAR"
-resetCollectButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-resetCollectButton.TextSize = isMobile and 11 or 10
-resetCollectButton.Font = Enum.Font.GothamBold
-resetCollectButton.BackgroundColor3 = Color3.fromRGB(64, 64, 64)
-resetCollectButton.BorderSizePixel = 0
-resetCollectButton.Parent = collectCard
-
-local resetCollectCorner = Instance.new("UICorner")
-resetCollectCorner.CornerRadius = UDim.new(0, 8)
-resetCollectCorner.Parent = resetCollectButton
-
--- ============ BOTÕES RÁPIDOS ============
-local quickButtonsContainer = Instance.new("Frame")
-quickButtonsContainer.Size = UDim2.new(1, -24, 0, 50)
-quickButtonsContainer.Position = UDim2.new(0, 12, 0, 730)
-quickButtonsContainer.BackgroundTransparency = 1
-quickButtonsContainer.Parent = mainContainer
-
-local quickLayout = Instance.new("UIListLayout")
-quickLayout.FillDirection = Enum.FillDirection.Horizontal
-quickLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-quickLayout.Padding = UDim.new(0, 10)
-quickLayout.Parent = quickButtonsContainer
-
-local autoSpeedButton = Instance.new("TextButton")
-autoSpeedButton.Size = UDim2.new(0, isMobile and 140 or 120, 0, isMobile and 42 or 38)
-autoSpeedButton.Text = "🔘 ATIVAR VELOCIDADE"
-autoSpeedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-autoSpeedButton.TextSize = isMobile and 12 or 10
-autoSpeedButton.Font = Enum.Font.GothamBold
-autoSpeedButton.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-autoSpeedButton.BorderSizePixel = 0
-autoSpeedButton.Parent = quickButtonsContainer
-
-local autoSpeedCorner = Instance.new("UICorner")
-autoSpeedCorner.CornerRadius = UDim.new(0, 10)
-autoSpeedCorner.Parent = autoSpeedButton
-
-local turboButton = Instance.new("TextButton")
-turboButton.Size = UDim2.new(0, isMobile and 70 or 60, 0, isMobile and 42 or 38)
-turboButton.Text = "🚀"
-turboButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-turboButton.TextSize = isMobile and 24 or 20
-turboButton.Font = Enum.Font.GothamBold
-turboButton.BackgroundColor3 = Color3.fromRGB(255, 64, 64)
-turboButton.BorderSizePixel = 0
-turboButton.Parent = quickButtonsContainer
-
-local turboCorner = Instance.new("UICorner")
-turboCorner.CornerRadius = UDim.new(0, 10)
-turboCorner.Parent = turboButton
-
-local infoButton = Instance.new("TextButton")
-infoButton.Size = UDim2.new(0, isMobile and 70 or 60, 0, isMobile and 42 or 38)
-infoButton.Text = "ℹ️"
-infoButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-infoButton.TextSize = isMobile and 24 or 20
-infoButton.Font = Enum.Font.GothamBold
-infoButton.BackgroundColor3 = Color3.fromRGB(66, 135, 245)
-infoButton.BorderSizePixel = 0
-infoButton.Parent = quickButtonsContainer
-
-local infoCorner = Instance.new("UICorner")
-infoCorner.CornerRadius = UDim.new(0, 10)
-infoCorner.Parent = infoButton
-
 -- Footer
 local footerFrame = Instance.new("Frame")
 footerFrame.Size = UDim2.new(1, 0, 0, 40)
@@ -716,7 +711,7 @@ local creditLabel = Instance.new("TextLabel")
 creditLabel.Size = UDim2.new(1, 0, 0, 18)
 creditLabel.Position = UDim2.new(0, 0, 0, 4)
 creditLabel.BackgroundTransparency = 1
-creditLabel.Text = "⚡ RIAN STUDIOS V8.0 ⚡"
+creditLabel.Text = "⚡ RIAN STUDIOS V9.0 ⚡"
 creditLabel.TextColor3 = Color3.fromRGB(120, 120, 120)
 creditLabel.TextSize = isMobile and 10 or 9
 creditLabel.Font = Enum.Font.Gotham
@@ -726,7 +721,7 @@ local versionLabel = Instance.new("TextLabel")
 versionLabel.Size = UDim2.new(1, 0, 0, 14)
 versionLabel.Position = UDim2.new(0, 0, 0, 22)
 versionLabel.BackgroundTransparency = 1
-versionLabel.Text = "SPEED | FLY | AIMBOT | INVINCIBLE | COLLECT"
+versionLabel.Text = "CAPACIDADE DE BLOCOS: " .. maxBlockCapacity .. "/250"
 versionLabel.TextColor3 = Color3.fromRGB(80, 80, 80)
 versionLabel.TextSize = isMobile and 8 or 7
 versionLabel.Font = Enum.Font.Gotham
@@ -734,6 +729,100 @@ versionLabel.Parent = footerFrame
 
 -- ============ FUNÇÕES PRINCIPAIS ============
 
+-- Função para atualizar a capacidade de blocos
+local function updateBlockCapacity(newCapacity)
+    newCapacity = math.clamp(newCapacity, minBlockCapacity, 250)
+    maxBlockCapacity = newCapacity
+    
+    -- Atualiza UI
+    capacityValueLabel.Text = maxBlockCapacity
+    versionLabel.Text = "CAPACIDADE DE BLOCOS: " .. maxBlockCapacity .. "/250"
+    
+    -- Atualiza slider
+    local percent = (maxBlockCapacity - minBlockCapacity) / (250 - minBlockCapacity)
+    capacitySliderFill:TweenSize(UDim2.new(percent, 0, 1, 0), "Out", "Quad", 0.1, true)
+    capacitySliderButton:TweenPosition(UDim2.new(percent, -12, 0.5, -12), "Out", "Quad", 0.1, true)
+    
+    -- Aplica a mudança no jogo
+    increaseBlockCapacity(maxBlockCapacity)
+    
+    -- Notificação
+    playSound("rbxassetid://9120384332", 0.3)
+    
+    local notif = Instance.new("Frame")
+    notif.Size = UDim2.new(0, 280, 0, 50)
+    notif.Position = UDim2.new(0.5, -140, 0, -50)
+    notif.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+    notif.BackgroundTransparency = 0.1
+    notif.BorderSizePixel = 0
+    notif.Parent = screenGui
+    
+    local notifCorner = Instance.new("UICorner")
+    notifCorner.CornerRadius = UDim.new(0, 12)
+    notifCorner.Parent = notif
+    
+    local notifText = Instance.new("TextLabel")
+    notifText.Size = UDim2.new(1, 0, 1, 0)
+    notifText.BackgroundTransparency = 1
+    notifText.Text = "📦 CAPACIDADE: " .. maxBlockCapacity .. " BLOCOS!"
+    notifText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    notifText.TextScaled = true
+    notifText.Font = Enum.Font.GothamBold
+    notifText.Parent = notif
+    
+    TweenService:Create(notif, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, 20)}):Play()
+    wait(2)
+    TweenService:Create(notif, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -140, 0, -50), BackgroundTransparency = 1}):Play()
+    wait(0.3)
+    notif:Destroy()
+end
+
+-- Slider da capacidade
+local draggingCapacity = false
+local function updateCapacityFromMouse(input)
+    local mousePos = input.Position.X
+    local sliderAbsPos = capacitySliderBg.AbsolutePosition.X
+    local sliderWidth = capacitySliderBg.AbsoluteSize.X
+    local percent = math.clamp((mousePos - sliderAbsPos) / sliderWidth, 0, 1)
+    local newCapacity = minBlockCapacity + (percent * (250 - minBlockCapacity))
+    updateBlockCapacity(math.floor(newCapacity))
+end
+
+capacitySliderButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingCapacity = true
+        updateCapacityFromMouse(input)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if draggingCapacity and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateCapacityFromMouse(input)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingCapacity = false
+    end
+end)
+
+-- Botões de capacidade
+add50Button.MouseButton1Click:Connect(function()
+    local newCapacity = math.min(maxBlockCapacity + 50, 250)
+    updateBlockCapacity(newCapacity)
+end)
+
+add100Button.MouseButton1Click:Connect(function()
+    local newCapacity = math.min(maxBlockCapacity + 100, 250)
+    updateBlockCapacity(newCapacity)
+end)
+
+maxButton.MouseButton1Click:Connect(function()
+    updateBlockCapacity(250)
+end)
+
+-- ============ FUNÇÕES DE VELOCIDADE ============
 local function applySpeedToCharacter()
     if not humanoid then return end
     
@@ -756,34 +845,62 @@ local function updateSpeed(newSpeed, ignoreBoostLock)
     applySpeedToCharacter()
 end
 
--- BOTÃO VELOCIDADE
-autoSpeedButton.MouseButton1Click:Connect(function()
-    playSound("rbxassetid://9120384332", 0.3)
-    
-    if not speedActivated then
-        speedActivated = true
-        updateSpeed(FAST_SPEED, true)
-        isSpeedBoosted = true
-        autoSpeedButton.Text = "✅ ATIVADO"
-        autoSpeedButton.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
-    else
-        speedActivated = false
-        updateSpeed(NORMAL_SPEED, true)
-        isSpeedBoosted = false
-        autoSpeedButton.Text = "🔘 ATIVAR"
-        autoSpeedButton.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-    end
-end)
+-- Botão Turbo (rápido)
+local turboButton = Instance.new("TextButton")
+turboButton.Size = UDim2.new(0, isMobile and 100 or 90, 0, isMobile and 38 or 34)
+turboButton.Position = UDim2.new(0.5, isMobile and -50 or -45, 1, -12)
+turboButton.Text = "🚀 TURBO"
+turboButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+turboButton.TextSize = isMobile and 12 or 10
+turboButton.Font = Enum.Font.GothamBold
+turboButton.BackgroundColor3 = Color3.fromRGB(255, 64, 64)
+turboButton.BorderSizePixel = 0
+turboButton.Parent = speedCard
 
--- BOTÃO TURBO
+local turboCorner = Instance.new("UICorner")
+turboCorner.CornerRadius = UDim.new(0, 8)
+turboCorner.Parent = turboButton
+
 turboButton.MouseButton1Click:Connect(function()
-    if isBombaBoosted then return end
     playSound("rbxassetid://9120384332", 0.3)
     updateSpeed(MAX_SPEED, true)
     isSpeedBoosted = true
     speedActivated = true
-    autoSpeedButton.Text = "✅ ATIVADO"
-    autoSpeedButton.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
+end)
+
+-- Slider de velocidade
+local dragging = false
+local function updateSliderFromMouse(input)
+    if isBombaBoosted then return end
+    
+    local mousePos = input.Position.X
+    local sliderAbsPos = sliderBg.AbsolutePosition.X
+    local sliderWidth = sliderBg.AbsoluteSize.X
+    local percent = math.clamp((mousePos - sliderAbsPos) / sliderWidth, 0, 1)
+    local newSpeed = MIN_SPEED + (percent * (MAX_SPEED - MIN_SPEED))
+    
+    updateSpeed(newSpeed, true)
+    isSpeedBoosted = (newSpeed > NORMAL_SPEED)
+    speedActivated = isSpeedBoosted
+end
+
+sliderButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        updateSliderFromMouse(input)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateSliderFromMouse(input)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
 end)
 
 -- SISTEMA DE VOO
@@ -992,235 +1109,6 @@ invincibleButton.MouseButton1Click:Connect(function()
     toggleInvincible()
 end)
 
--- SISTEMA DE COLETA
-local function findNearbyBlocks()
-    local blocks = {}
-    local rootPos = humanoidRootPart and humanoidRootPart.Position or character:GetPivot().Position
-    
-    for _, obj in pairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and not obj:IsA("Terrain") then
-            local objName = obj.Name:lower()
-            local isCollectable = false
-            
-            local collectableNames = {"block", "brick", "cube", "collect", "pickup", "item", "coin", "gem", "crystal", "powerup", "boost"}
-            for _, name in pairs(collectableNames) do
-                if objName:find(name) then
-                    isCollectable = true
-                    break
-                end
-            end
-            
-            if obj:GetAttribute("Collectable") or obj:GetAttribute("Block") then
-                isCollectable = true
-            end
-            
-            if isCollectable and not collectedBlocksList[obj] then
-                local distance = (rootPos - obj.Position).Magnitude
-                if distance <= blockCollectionRange then
-                    table.insert(blocks, obj)
-                end
-            end
-        end
-    end
-    
-    return blocks
-end
-
-local function collectBlock(block)
-    if collectedBlocksList[block] then return false end
-    
-    collectedBlocksList[block] = true
-    blocksCollected = blocksCollected + 1
-    
-    collectValueLabel.Text = blocksCollected .. " / " .. targetBlocks
-    local percent = blocksCollected / targetBlocks
-    collectProgressFill:TweenSize(UDim2.new(percent, 0, 1, 0), "Out", "Quad", 0.2, true)
-    
-    -- Efeito visual
-    local collectEffect = Instance.new("Part")
-    collectEffect.Shape = Enum.PartType.Ball
-    collectEffect.Size = Vector3.new(1.5, 1.5, 1.5)
-    collectEffect.BrickColor = BrickColor.new("Bright yellow")
-    collectEffect.Material = Enum.Material.Neon
-    collectEffect.CFrame = block.CFrame
-    collectEffect.Anchored = true
-    collectEffect.CanCollide = false
-    collectEffect.Parent = workspace
-    
-    TweenService:Create(collectEffect, TweenInfo.new(0.3), {Size = Vector3.new(0, 0, 0)}):Play()
-    game:GetService("Debris"):AddItem(collectEffect, 0.3)
-    
-    playSound("rbxassetid://9120384332", 0.4)
-    
-    block.Transparency = 1
-    block.CanCollide = false
-    
-    game:GetService("Debris"):AddItem(block, 2)
-    
-    if blocksCollected >= targetBlocks then
-        local completeNotif = Instance.new("Frame")
-        completeNotif.Size = UDim2.new(0, 280, 0, 50)
-        completeNotif.Position = UDim2.new(0.5, -140, 0.5, -25)
-        completeNotif.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
-        completeNotif.BackgroundTransparency = 0.1
-        completeNotif.BorderSizePixel = 0
-        completeNotif.Parent = screenGui
-        
-        local completeCorner = Instance.new("UICorner")
-        completeCorner.CornerRadius = UDim.new(0, 12)
-        completeCorner.Parent = completeNotif
-        
-        local completeText = Instance.new("TextLabel")
-        completeText.Size = UDim2.new(1, 0, 1, 0)
-        completeText.BackgroundTransparency = 1
-        completeText.Text = "🎉 META ALCANÇADA! 🎉"
-        completeText.TextColor3 = Color3.fromRGB(255, 255, 255)
-        completeText.TextScaled = true
-        completeText.Font = Enum.Font.GothamBold
-        completeText.Parent = completeNotif
-        
-        TweenService:Create(completeNotif, TweenInfo.new(0.4), {BackgroundTransparency = 0.3, Position = UDim2.new(0.5, -140, 0.3, -25)}):Play()
-        wait(3)
-        TweenService:Create(completeNotif, TweenInfo.new(0.4), {BackgroundTransparency = 1}):Play()
-        wait(0.3)
-        completeNotif:Destroy()
-    end
-    
-    return true
-end
-
-local function startAutoCollect()
-    if autoCollectConnection then autoCollectConnection:Disconnect() end
-    
-    autoCollectConnection = RunService.RenderStepped:Connect(function()
-        if autoCollectEnabled and character and humanoidRootPart then
-            local nearbyBlocks = findNearbyBlocks()
-            for _, block in pairs(nearbyBlocks) do
-                if not collectedBlocksList[block] then
-                    collectBlock(block)
-                    wait(0.1)
-                end
-            end
-        end
-    end)
-end
-
-local function updateTargetBlocks(newTarget)
-    targetBlocks = math.clamp(newTarget, 30, 250)
-    collectValueLabel.Text = blocksCollected .. " / " .. targetBlocks
-    
-    local percent = (targetBlocks - 30) / (250 - 30)
-    targetSliderFill:TweenSize(UDim2.new(percent, 0, 1, 0), "Out", "Quad", 0.1, true)
-    targetSliderButton:TweenPosition(UDim2.new(percent, -9, 0.5, -9), "Out", "Quad", 0.1, true)
-    
-    local collectPercent = blocksCollected / targetBlocks
-    collectProgressFill:TweenSize(UDim2.new(collectPercent, 0, 1, 0), "Out", "Quad", 0.2, true)
-end
-
--- Slider da meta
-local draggingTarget = false
-local function updateTargetFromMouse(input)
-    local mousePos = input.Position.X
-    local sliderAbsPos = targetSliderBg.AbsolutePosition.X
-    local sliderWidth = targetSliderBg.AbsoluteSize.X
-    local percent = math.clamp((mousePos - sliderAbsPos) / sliderWidth, 0, 1)
-    local newTarget = 30 + (percent * (250 - 30))
-    updateTargetBlocks(math.floor(newTarget))
-end
-
-targetSliderButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        draggingTarget = true
-        updateTargetFromMouse(input)
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if draggingTarget and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        updateTargetFromMouse(input)
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        draggingTarget = false
-    end
-end)
-
--- Botões de coleta
-autoCollectButton.MouseButton1Click:Connect(function()
-    playSound("rbxassetid://9120384332", 0.3)
-    autoCollectEnabled = not autoCollectEnabled
-    
-    if autoCollectEnabled then
-        autoCollectButton.Text = "⏹️ AUTO"
-        autoCollectButton.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
-        collectCardStroke.Color = Color3.fromRGB(76, 175, 80)
-        startAutoCollect()
-    else
-        autoCollectButton.Text = "🔄 AUTO"
-        autoCollectButton.BackgroundColor3 = Color3.fromRGB(255, 152, 0)
-        collectCardStroke.Color = Color3.fromRGB(255, 215, 0)
-        
-        if autoCollectConnection then
-            autoCollectConnection:Disconnect()
-            autoCollectConnection = nil
-        end
-    end
-end)
-
-resetCollectButton.MouseButton1Click:Connect(function()
-    playSound("rbxassetid://9120384332", 0.3)
-    blocksCollected = 0
-    collectedBlocksList = {}
-    collectValueLabel.Text = blocksCollected .. " / " .. targetBlocks
-    local percent = blocksCollected / targetBlocks
-    collectProgressFill:TweenSize(UDim2.new(percent, 0, 1, 0), "Out", "Quad", 0.2, true)
-end)
-
--- SLIDER DE VELOCIDADE
-local dragging = false
-local function updateSliderFromMouse(input)
-    if isBombaBoosted then return end
-    
-    local mousePos = input.Position.X
-    local sliderAbsPos = sliderBg.AbsolutePosition.X
-    local sliderWidth = sliderBg.AbsoluteSize.X
-    local percent = math.clamp((mousePos - sliderAbsPos) / sliderWidth, 0, 1)
-    local newSpeed = MIN_SPEED + (percent * (MAX_SPEED - MIN_SPEED))
-    
-    updateSpeed(newSpeed, true)
-    isSpeedBoosted = (newSpeed > NORMAL_SPEED)
-    speedActivated = isSpeedBoosted
-    
-    if speedActivated then
-        autoSpeedButton.Text = "✅ ATIVADO"
-        autoSpeedButton.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
-    else
-        autoSpeedButton.Text = "🔘 ATIVAR"
-        autoSpeedButton.BackgroundColor3 = Color3.fromRGB(34, 197, 94)
-    end
-end
-
-sliderButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        updateSliderFromMouse(input)
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        updateSliderFromMouse(input)
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
 -- ATAQUE
 local function playPunchAnimation()
     local anim = Instance.new("Animation")
@@ -1301,10 +1189,25 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 -- INFO
+local infoButton = Instance.new("TextButton")
+infoButton.Size = UDim2.new(0, isMobile and 70 or 60, 0, isMobile and 38 or 34)
+infoButton.Position = UDim2.new(0.5, isMobile and 40 or 35, 1, -12)
+infoButton.Text = "ℹ️"
+infoButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+infoButton.TextSize = isMobile and 20 or 18
+infoButton.Font = Enum.Font.GothamBold
+infoButton.BackgroundColor3 = Color3.fromRGB(66, 135, 245)
+infoButton.BorderSizePixel = 0
+infoButton.Parent = speedCard
+
+local infoCorner = Instance.new("UICorner")
+infoCorner.CornerRadius = UDim.new(0, 8)
+infoCorner.Parent = infoButton
+
 infoButton.MouseButton1Click:Connect(function()
     local infoFrame = Instance.new("Frame")
-    infoFrame.Size = UDim2.new(0, 300, 0, 350)
-    infoFrame.Position = UDim2.new(0.5, -150, 0.5, -175)
+    infoFrame.Size = UDim2.new(0, 320, 0, 420)
+    infoFrame.Position = UDim2.new(0.5, -160, 0.5, -210)
     infoFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 28)
     infoFrame.BackgroundTransparency = 0.05
     infoFrame.BorderSizePixel = 0
@@ -1319,30 +1222,35 @@ infoButton.MouseButton1Click:Connect(function()
     infoText.Position = UDim2.new(0, 10, 0, 10)
     infoText.BackgroundTransparency = 1
     infoText.Text = [[
-⚡ RIAN STUDIOS V8.0 ⚡
+⚡ RIAN STUDIOS V9.0 ⚡
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+📦 CAPACIDADE DE BLOCOS:
+   • Aumente de 30 ATÉ 250 blocos!
+   • Use o slider ou botões (+50, +100, MAX)
+   • MUDA O LIMITE MÁXIMO DO JOGO!
+
 🎮 VELOCIDADE:
-   • ATIVAR: 80 (persistente)
-   • SLIDER: Ajuste 16-120
+   • Slider: Ajuste 16-120
    • TURBO: Máximo instantâneo
 
 🕊️ VOO: WASD + ESPAÇO/SHIFT
 
-🎯 AIMBOT: Mira automática
+🎯 AIMBOT: Mira automática em inimigos
 
 🛡️ INVINCIBLE: Imune a danos
 
-📦 COLETA:
-   • Meta: 30 a 250 blocos
-   • AUTO: Coleta automática
-
 👊 ATAQUE: Clique esquerdo (combo 3x)
 
-💣 BOOST: Pegue bombas!
+💣 BOOST: Pegue bombas para velocidade 120
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 COMO FUNCIONA A CAPACIDADE:
+   • O script MODIFICA o limite máximo
+   • Você pode carregar MAIS blocos
+   • Vai de 30 até 250 blocos!
+
 👑 CRIADO POR RIAN
     ]]
     infoText.TextColor3 = Color3.fromRGB(220, 220, 220)
@@ -1383,11 +1291,7 @@ player.CharacterAdded:Connect(function(newCharacter)
         humanoid.Health = math.huge
     end
     
-    currentSpeed = speedActivated and FAST_SPEED or NORMAL_SPEED
     applySpeedToCharacter()
-    
-    speedValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    sliderFill.BackgroundColor3 = Color3.fromRGB(66, 135, 245)
 end)
 
 -- UI TOGGLE
@@ -1414,7 +1318,7 @@ closeButton.MouseButton1Click:Connect(toggleUI)
 -- INICIALIZAR
 setupAntiBan()
 applySpeedToCharacter()
-startAutoCollect()
+updateBlockCapacity(maxBlockCapacity)
 
 -- Animação do botão flutuante
 coroutine.wrap(function()
@@ -1429,8 +1333,9 @@ coroutine.wrap(function()
 end)()
 
 print("═══════════════════════════════════════════════════════════════════════════════")
-print("✅ SISTEMA RIAN STUDIOS V8.0 CARREGADO COM SUCESSO!")
-print("✅ ANTI-BAN ATIVADO - VOCÊ NÃO SERÁ EXPULSO!")
-print("✅ SISTEMA DE COLETA: 30 a 250 blocos!")
-print("✅ AIMBOT | INVINCIBLE | VOO | VELOCIDADE | COLETA")
+print("✅ SISTEMA RIAN STUDIOS V9.0 CARREGADO COM SUCESSO!")
+print("✅ CAPACIDADE DE BLOCOS: DE 30 ATÉ 250 BLOCOS!")
+print("✅ Use o slider ou botões para AUMENTAR o limite máximo!")
+print("✅ O script MODIFICA o jogo para você carregar MAIS blocos!")
+print("✅ ANTI-BAN ATIVADO | VELOCIDADE | VOO | AIMBOT | INVINCIBLE")
 print("═══════════════════════════════════════════════════════════════════════════════")
